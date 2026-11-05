@@ -19,7 +19,7 @@ screen). The app's on-screen labels are in Spanish.</sub>
 
 - **Split screen.** The top half (orange) is the opponents and the bottom half
   (blue) is your team, on a black panel. Orange/blue stays distinguishable
-  with red-green colour blindness, and black keeps the AMOLED panel cheap on
+  with red-green color blindness, and black keeps the AMOLED panel cheap on
   battery.
 - **Scoreboard in the middle.** It has one column per set, with the opponents'
   games on top and yours below. The set in play sits on a grey tile. In a
@@ -30,7 +30,7 @@ screen). The app's on-screen labels are in Spanish.</sub>
     *VENTAJA*, while the rival's 40 dims.
   - *Tiebreak / golden point:* a white pill (`TIE-BREAK`, `PUNTO DE ORO`)
     appears on the edge of the scoreboard without moving anything else.
-  - *Match over:* the winner's half lights up with **WIN** in its colour and *GANAMOS*
+  - *Match over:* the winner's half lights up with **WIN** in its color and *GANAMOS*
     or *GANAN*, and the other half shows a dimmed bar.
 - **Full padel rules.** Points go 0 / 15 / 30 / 40 with deuce and advantage, or
   an optional **golden point** (*punto de oro*). Sets go to 6, won by 2, with a
@@ -64,10 +64,25 @@ last one played, it's fully undone, even if it closed a game or a set.
 > A right swipe adds a point here, so it **doesn't close the app** as it does
 > elsewhere on the band. Use **Salir** in the menu to exit.
 
+## Screens
+
+| Start | Mid-match | Our advantage |
+| :---: | :---: | :---: |
+| <img src="docs/screens/01-start.png" width="150"> | <img src="docs/screens/02-normal.png" width="150"> | <img src="docs/screens/03-ad-us.png" width="150"> |
+| **Their advantage** | **Golden point** | **Tiebreak** |
+| <img src="docs/screens/04-ad-them.png" width="150"> | <img src="docs/screens/05-golden.png" width="150"> | <img src="docs/screens/06-tiebreak.png" width="150"> |
+| **We won** | **They won** | **Menu** (long-press) |
+| <img src="docs/screens/07-win-us.png" width="150"> | <img src="docs/screens/08-win-them.png" width="150"> | <img src="docs/screens/09-menu.png" width="150"> |
+
+How to read the scoreboard in the middle: each column is a set, with their
+games (orange) on top and ours (blue) below. In *Mid-match*, we won the first
+set 6-4 (bold and underlined) and trail 2-3 in the second (grey tile).
+
 ## Download
 
 Get the latest `.rpk` from
-[Releases](https://github.com/IlanVivanco/padel-band/releases). Release builds
+[Releases](https://github.com/IlanVivanco/padel-band/releases). See the
+[changelog](CHANGELOG.md) for what changed in each version. Release builds
 are debug-signed and compiled to JSC bytecode, which is what the band needs to
 sideload them.
 
@@ -171,9 +186,13 @@ npm run build     # -> dist/com.ilanvivanco.padelband.debug.<version>.rpk
 `npm run test:ui` builds the plain-JS bundle and drives it in headless
 Chromium through `test/harness/` (adapted from Calc+). It checks that every
 state fits inside the capsule, that the points, scoreboard and pill are
-centred, and that taps and swipes score on the right side. It also saves
+centered, and that taps and swipes score on the right side. It also saves
 screenshots to `test/screens/`. Run `npm run build` afterwards, because the
 `.rpk` must be the JSC build.
+
+To refresh the README images from those screenshots, run
+`python3 tools/docs_images.py` (needs Pillow). It writes `docs/preview.png` and
+`docs/screens/*.png`.
 
 `npm run build` runs `aiot build --enable-jsc`. **Sideload only the debug
 build**, and keep JSC on: the Band 10 won't run plain-JS packages.
@@ -195,7 +214,9 @@ src/
 test/padel.test.mjs      scoring tests (node --test)
 test/ui.test.mjs         layout and gesture tests on the compiled page
 test/harness/            minimal Vela runtime for Chromium (from Calc+)
-docs/preview.png         README screenshots (from the harness)
+tools/docs_images.py     builds the README images from the test screenshots
+docs/                    README images and app icon
+CHANGELOG.md             version history
 ```
 
 The match is stored as the sequence of point winners (`"uutu…"`), and the score

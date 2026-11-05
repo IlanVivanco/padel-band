@@ -123,6 +123,16 @@ test('every state renders inside the capsule with no overflow', async () => {
   }
 })
 
+test('the menu fits the capsule', async () => {
+  const page = await open(STATES['02-normal'][0])
+  await page.evaluate(() => { window.harness.vm.menu = true })
+  await page.waitForTimeout(20)
+  const issues = await page.evaluate(() => window.harness.layoutIssues())
+  assert.deepEqual(issues, [])
+  await shot(page, '09-menu')
+  await page.close()
+})
+
 test('halves, board and points are centred', async () => {
   const page = await open(STATES['02-normal'][0])
   const b = await boxes(page, ['half-them', 'half-us', 'pts-them', 'pts-us'])
