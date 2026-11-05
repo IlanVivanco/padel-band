@@ -1,39 +1,60 @@
 <template>
   <div class="page">
-    <!-- Score view. Top half (coral) is them, bottom half (green) is us; the
-         same colours run through the scoreboard in the middle, so no labels
-         are needed. Tap or swipe right on a half: point for that side. Swipe
-         left: take one away. Long-press: menu. -->
+    <!-- Score view. Top half is them (orange), bottom half is us (blue); the
+         same colours run through the scoreboard, so no labels are needed.
+         Tap or swipe right on a half: point for that side. Swipe left: take
+         one away. Long-press: menu. -->
     <div class="score" if="{{ !menu }}">
-      <div id="half-them" class="half half-them {{ flashThem }}"
+      <!-- Each half is a fixed three-slot stack (label / points / label), so
+           the points stay centred whether or not a label is showing. The
+           label sits on the outer side: above for them, below for us. -->
+      <div id="half-them" class="half {{ themBg }}"
            ontouchstart="startThem" ontouchmove="move" ontouchend="endThem" ontouchcancel="cancel" onlongpress="openMenu">
-        <text class="points points-them {{ themPtsCls }}">{{ themPts }}</text>
+        <text id="label-them" class="label label-them">{{ themLabel }}</text>
+        <text id="pts-them" class="points {{ themPtsCls }}">{{ themPts }}</text>
+        <text class="label"></text>
       </div>
 
-      <!-- Scoreboard: one column per set (games them over games us). The
-           current set sits on a lighter tile; in finished sets the loser's
-           number is dimmed. -->
+      <!-- Scoreboard: one column per set, their games over ours. The set in
+           play sits on a grey tile. In a finished set the winner's number is
+           bold and underlined and the loser's is dimmed. Each column is
+           slot / them / slot / us / slot, so both numbers sit symmetrically
+           about the middle; a winner's bar goes in the slot below its number. -->
       <div class="board">
-        <div class="board-row">
-          <div class="col {{ colCur[0] ? 'col-cur' : '' }}" if="{{ colOn[0] }}">
-            <text class="num num-them {{ colThemDim[0] ? 'num-them-dim' : '' }}">{{ colThem[0] }}</text>
-            <text class="num num-us {{ colUsDim[0] ? 'num-us-dim' : '' }}">{{ colUs[0] }}</text>
-          </div>
-          <div class="col {{ colCur[1] ? 'col-cur' : '' }}" if="{{ colOn[1] }}">
-            <text class="num num-them {{ colThemDim[1] ? 'num-them-dim' : '' }}">{{ colThem[1] }}</text>
-            <text class="num num-us {{ colUsDim[1] ? 'num-us-dim' : '' }}">{{ colUs[1] }}</text>
-          </div>
-          <div class="col {{ colCur[2] ? 'col-cur' : '' }}" if="{{ colOn[2] }}">
-            <text class="num num-them {{ colThemDim[2] ? 'num-them-dim' : '' }}">{{ colThem[2] }}</text>
-            <text class="num num-us {{ colUsDim[2] ? 'num-us-dim' : '' }}">{{ colUs[2] }}</text>
-          </div>
+        <div class="col {{ colCur[0] ? 'col-cur' : '' }}" if="{{ colOn[0] }}">
+          <div class="bar-slot"></div>
+          <text id="c0-them" class="num {{ colThemCls[0] }}">{{ colThem[0] }}</text>
+          <div class="bar-slot"><div class="bar {{ colThemBar[0] }}"></div></div>
+          <text id="c0-us" class="num {{ colUsCls[0] }}">{{ colUs[0] }}</text>
+          <div class="bar-slot"><div class="bar {{ colUsBar[0] }}"></div></div>
         </div>
-        <text class="caption {{ captionCls }}" if="{{ caption }}">{{ caption }}</text>
+        <div class="col {{ colCur[1] ? 'col-cur' : '' }}" if="{{ colOn[1] }}">
+          <div class="bar-slot"></div>
+          <text id="c1-them" class="num {{ colThemCls[1] }}">{{ colThem[1] }}</text>
+          <div class="bar-slot"><div class="bar {{ colThemBar[1] }}"></div></div>
+          <text id="c1-us" class="num {{ colUsCls[1] }}">{{ colUs[1] }}</text>
+          <div class="bar-slot"><div class="bar {{ colUsBar[1] }}"></div></div>
+        </div>
+        <div class="col {{ colCur[2] ? 'col-cur' : '' }}" if="{{ colOn[2] }}">
+          <div class="bar-slot"></div>
+          <text id="c2-them" class="num {{ colThemCls[2] }}">{{ colThem[2] }}</text>
+          <div class="bar-slot"><div class="bar {{ colThemBar[2] }}"></div></div>
+          <text id="c2-us" class="num {{ colUsCls[2] }}">{{ colUs[2] }}</text>
+          <div class="bar-slot"><div class="bar {{ colUsBar[2] }}"></div></div>
+        </div>
       </div>
 
-      <div id="half-us" class="half half-us {{ flashUs }}"
+      <div id="half-us" class="half {{ usBg }}"
            ontouchstart="startUs" ontouchmove="move" ontouchend="endUs" ontouchcancel="cancel" onlongpress="openMenu">
-        <text class="points points-us {{ usPtsCls }}">{{ usPts }}</text>
+        <text class="label"></text>
+        <text id="pts-us" class="points {{ usPtsCls }}">{{ usPts }}</text>
+        <text id="label-us" class="label label-us">{{ usLabel }}</text>
+      </div>
+
+      <!-- Status pill (TIE-BREAK / PUNTO DE ORO), centred on the edge between
+           the scoreboard and our half, so nothing else moves when it shows. -->
+      <div class="pill-wrap" if="{{ pill }}">
+        <div class="pill"><text id="pill" class="pill-text">{{ pill }}</text></div>
       </div>
     </div>
 
@@ -44,7 +65,7 @@
       <div id="m-golden" class="btn" onclick="toggleGolden"><text class="btn-label">Punto de oro: {{ golden ? 'Sí' : 'No' }}</text></div>
       <div id="m-screen" class="btn" onclick="toggleScreen"><text class="btn-label">Pantalla fija: {{ keepOn ? 'Sí' : 'No' }}</text></div>
       <div id="m-exit" class="btn" onclick="exitApp"><text class="btn-label">Salir</text></div>
-      <div id="m-back" class="btn btn-primary" onclick="closeMenu"><text class="btn-label">Volver</text></div>
+      <div id="m-back" class="btn btn-primary" onclick="closeMenu"><text class="btn-label btn-label-dark">Volver</text></div>
     </div>
   </div>
 </template>
@@ -70,6 +91,7 @@ var FLASH_MS = 220
 var match = newMatch(false)
 var touch = null // { x, y, lastX, lastY, t } while a finger is down
 var flashTimer = null
+var flash = '' // 'u+', 't-' ... while a half is flashing
 
 function pointOf(evt, list) {
   var l = evt && evt[list]
@@ -82,21 +104,23 @@ export default {
     menu: false,
     golden: false,
     keepOn: true,
-    usPts: '0',
     themPts: '0',
+    usPts: '0',
+    themPtsCls: 'pts-them',
+    usPtsCls: 'pts-us',
+    themLabel: '',
+    usLabel: '',
+    themBg: '',
+    usBg: '',
     colOn: [true, false, false],
     colCur: [true, false, false],
     colThem: ['0', '', ''],
     colUs: ['0', '', ''],
-    colThemDim: [false, false, false],
-    colUsDim: [false, false, false],
-    usPtsCls: '',
-    themPtsCls: '',
-    caption: '',
-    captionCls: '',
-    winner: '',
-    flashThem: '',
-    flashUs: ''
+    colThemCls: ['num-them', '', ''],
+    colUsCls: ['num-us', '', ''],
+    colThemBar: ['', '', ''],
+    colUsBar: ['', '', ''],
+    pill: ''
   },
 
   onInit() {
@@ -145,10 +169,7 @@ export default {
   // a right swipe is a point, so it must not close the app; Salir in the
   // menu exits instead.
   onBackPress() {
-    if (this.menu) {
-      this.menu = false
-      return true
-    }
+    if (this.menu) this.menu = false
     return true
   },
 
@@ -216,29 +237,26 @@ export default {
     this.changed(side + '-', 'short')
   },
 
-  changed(flash, buzz) {
+  changed(f, buzz) {
     // Saved on every change: the band can kill the app while the screen is off.
     this.save()
-    this.render()
     this.buzz(buzz)
-    this.showFlash(flash)
+    this.showFlash(f)
   },
 
   buzz(mode) {
     try { vibrator.vibrate({ mode: mode }) } catch (e) {}
   },
 
-  // f is side + sign, e.g. 'u+' or 't-'.
   showFlash(f) {
     var page = this
-    var add = f[1] === '+'
-    this.flashUs = f[0] === US ? (add ? 'flash-add-us' : 'flash-sub') : ''
-    this.flashThem = f[0] === THEM ? (add ? 'flash-add-them' : 'flash-sub') : ''
+    flash = f
+    this.render()
     if (flashTimer) clearTimeout(flashTimer)
     flashTimer = setTimeout(function () {
-      page.flashUs = ''
-      page.flashThem = ''
+      flash = ''
       flashTimer = null
+      page.render()
     }, FLASH_MS)
   },
 
@@ -295,65 +313,103 @@ export default {
   render() {
     var s = score(match)
     var l = pointLabels(s, match.golden)
+    var w = s.winner
     this.golden = match.golden
-    this.winner = s.winner || ''
-    this.usPtsCls = s.winner === US ? 'points-win' : (s.winner === THEM ? 'points-lose' : '')
-    this.themPtsCls = s.winner === THEM ? 'points-win' : (s.winner === US ? 'points-lose' : '')
-    if (s.winner) {
-      this.usPts = s.winner === US ? 'WIN' : '-'
-      this.themPts = s.winner === THEM ? 'WIN' : '-'
-    } else {
-      this.usPts = l.u
-      this.themPts = l.t
+
+    // Points, labels and half tints.
+    var adv = l.u === 'AD' ? US : (l.t === 'AD' ? THEM : null)
+    var themPts = l.t, usPts = l.u
+    var themCls = 'pts-them', usCls = 'pts-us'
+    var themLabel = '', usLabel = ''
+    var themHi = false, usHi = false
+    if (w) {
+      themPts = w === THEM ? 'WIN' : '-'
+      usPts = w === US ? 'WIN' : '-'
+      themCls = w === THEM ? 'pts-win' : 'pts-lose'
+      usCls = w === US ? 'pts-win' : 'pts-lose'
+      themLabel = w === THEM ? 'GANAN' : ''
+      usLabel = w === US ? 'GANAMOS' : ''
+      themHi = w === THEM
+      usHi = w === US
+    } else if (adv === US) {
+      usCls = 'pts-us pts-ad'
+      themCls = 'pts-them-dim'
+      usLabel = 'VENTAJA'
+      usHi = true
+    } else if (adv === THEM) {
+      themCls = 'pts-them pts-ad'
+      usCls = 'pts-us-dim'
+      themLabel = 'VENTAJA'
+      themHi = true
     }
+    this.themPts = themPts
+    this.usPts = usPts
+    this.themPtsCls = themCls
+    this.usPtsCls = usCls
+    this.themLabel = themLabel
+    this.usLabel = usLabel
+
+    // A flash wins over the tint while it lasts.
+    var fs = flash ? flash[0] : ''
+    var fAdd = flash ? flash[1] === '+' : false
+    this.themBg = fs === THEM ? (fAdd ? 'flash-them' : 'flash-sub') : (themHi ? 'half-them-hi' : '')
+    this.usBg = fs === US ? (fAdd ? 'flash-us' : 'flash-sub') : (usHi ? 'half-us-hi' : '')
 
     // Scoreboard columns: finished sets, then the current one.
     var cols = []
     for (var i = 0; i < s.setScores.length; i++) {
-      var u = s.setScores[i][0]
-      var t = s.setScores[i][1]
-      cols.push({ t: String(t), u: String(u), tDim: t < u, uDim: u < t, cur: false })
+      var su = s.setScores[i][0]
+      var st = s.setScores[i][1]
+      var tWon = st > su
+      cols.push({
+        t: String(st), u: String(su), cur: false,
+        tCls: tWon ? 'num-them num-won' : 'num-them-dim',
+        uCls: tWon ? 'num-us-dim' : 'num-us num-won',
+        tBar: tWon ? 'bar-them' : '',
+        uBar: tWon ? '' : 'bar-us'
+      })
     }
-    if (!s.winner) {
-      cols.push({ t: String(s.games.t), u: String(s.games.u), tDim: false, uDim: false, cur: true })
+    if (!w) {
+      cols.push({
+        t: String(s.games.t), u: String(s.games.u), cur: true,
+        tCls: 'num-them', uCls: 'num-us', tBar: '', uBar: ''
+      })
     }
-    var on = [], cur = [], ct = [], cu = [], td = [], ud = []
+    var on = [], cur = [], ct = [], cu = [], tc = [], uc = [], tb = [], ub = []
     for (var k = 0; k < 3; k++) {
       var c = cols[k]
       on.push(!!c)
       cur.push(c ? c.cur : false)
       ct.push(c ? c.t : '')
       cu.push(c ? c.u : '')
-      td.push(c ? c.tDim : false)
-      ud.push(c ? c.uDim : false)
+      tc.push(c ? c.tCls : '')
+      uc.push(c ? c.uCls : '')
+      tb.push(c ? c.tBar : '')
+      ub.push(c ? c.uBar : '')
     }
     this.colOn = on
     this.colCur = cur
     this.colThem = ct
     this.colUs = cu
-    this.colThemDim = td
-    this.colUsDim = ud
+    this.colThemCls = tc
+    this.colUsCls = uc
+    this.colThemBar = tb
+    this.colUsBar = ub
 
-    // Caption under the board: only when something special is going on.
-    var caption = ''
-    var cls = ''
-    if (s.winner) {
-      caption = 'FIN DEL PARTIDO'
-      cls = 'caption-fin'
-    } else if (s.tiebreak) {
-      caption = 'TIE-BREAK'
-      cls = 'caption-tb'
-    } else if (match.golden && s.points.u === 3 && s.points.t === 3) {
-      caption = 'PUNTO DE ORO'
-      cls = 'caption-oro'
-    }
-    this.caption = caption
-    this.captionCls = cls
+    // Status pill: only when something special is going on.
+    var pill = ''
+    if (!w && s.tiebreak) pill = 'TIE-BREAK'
+    else if (!w && match.golden && s.points.u === 3 && s.points.t === 3) pill = 'PUNTO DE ORO'
+    this.pill = pill
   }
 }
 </script>
 
 <style>
+/* Palette: black panel, orange for them, blue for us.
+   them  #ff9f0a  dim #734804  set-dim #5c4520  tint #3a2405  flash #5c3a08
+   us    #64d2ff  dim #2d5f73  set-dim #245066  tint #062b40  flash #0a4766
+   Layout (px): half 200 | board 120 | half 200 = 520. */
 .page {
   width: 212px;
   height: 520px;
@@ -366,113 +422,169 @@ export default {
   flex-direction: column;
 }
 
-/* Each half is one big touch target, tinted in its side's colour. */
+/* --- halves --- */
 .half {
   width: 212px;
   height: 200px;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  background-color: #000000;
 }
-.half-them {
-  background-color: #2a0f0c;
+.half-them-hi {
+  background-color: #3a2405;
 }
-.half-us {
-  background-color: #0b2614;
+.half-us-hi {
+  background-color: #062b40;
 }
-.flash-add-them {
-  background-color: #5a2019;
+.flash-them {
+  background-color: #5c3a08;
 }
-.flash-add-us {
-  background-color: #17572d;
+.flash-us {
+  background-color: #0a4766;
 }
 .flash-sub {
-  background-color: #3a3a3a;
+  background-color: #262626;
+}
+.label {
+  width: 212px;
+  height: 18px;
+  line-height: 18px;
+  font-size: 13px;
+  font-weight: bold;
+  text-align: center;
+  color: #000000;
+}
+.label-them {
+  color: #ff9f0a;
+}
+.label-us {
+  color: #64d2ff;
 }
 .points {
   width: 212px;
+  height: 112px;
+  line-height: 112px;
   font-size: 96px;
   text-align: center;
 }
-.points-them {
-  color: #ffd6d0;
+.pts-them {
+  color: #ff9f0a;
 }
-.points-us {
-  color: #d3f8de;
+.pts-us {
+  color: #64d2ff;
 }
-.points-win {
+.pts-them-dim {
+  color: #734804;
+}
+.pts-us-dim {
+  color: #2d5f73;
+}
+.pts-ad {
+  font-weight: bold;
+}
+.pts-win {
   font-size: 64px;
-  color: #ffcc00;
+  font-weight: bold;
+  color: #ffffff;
 }
-.points-lose {
-  color: #555555;
+.pts-lose {
+  font-size: 64px;
+  color: #444444;
 }
 
-/* Scoreboard */
+/* --- scoreboard --- */
 .board {
   width: 212px;
   height: 120px;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  background-color: #000000;
-}
-.board-row {
-  width: 212px;
-  height: 104px;
   flex-direction: row;
   justify-content: center;
   align-items: center;
+  background-color: #141414;
 }
 .col {
   width: 58px;
   height: 104px;
-  margin-left: 4px;
-  margin-right: 4px;
+  margin-left: 3px;
+  margin-right: 3px;
   border-radius: 12px;
   flex-direction: column;
   justify-content: center;
   align-items: center;
 }
 .col-cur {
-  background-color: #2b2b2b;
+  background-color: #2e2e2e;
 }
 .num {
   width: 58px;
-  font-size: 40px;
-  height: 48px;
+  height: 42px;
+  line-height: 42px;
+  font-size: 38px;
   text-align: center;
 }
 .num-them {
-  color: #ff6b57;
+  color: #ff9f0a;
 }
 .num-us {
-  color: #3ddc84;
+  color: #64d2ff;
 }
 .num-them-dim {
-  color: #6e322a;
+  color: #5c4520;
 }
 .num-us-dim {
-  color: #1d5e37;
+  color: #245066;
 }
-.caption {
-  width: 212px;
-  height: 16px;
-  margin-top: 0px;
-  font-size: 13px;
-  color: #8c8c8c;
-  text-align: center;
+.num-won {
+  font-weight: bold;
 }
-.caption-tb {
-  color: #ffcc00;
+.bar-slot {
+  width: 58px;
+  height: 5px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
 }
-.caption-oro {
-  color: #ffcc00;
+.bar {
+  width: 20px;
+  height: 3px;
+  border-radius: 1px;
 }
-.caption-fin {
-  color: #ffffff;
+.bar-them {
+  background-color: #ff9f0a;
+}
+.bar-us {
+  background-color: #64d2ff;
 }
 
+/* --- status pill, centred on y = 320 (board / our half) --- */
+.pill-wrap {
+  position: absolute;
+  left: 0px;
+  top: 310px;
+  width: 212px;
+  height: 20px;
+  flex-direction: row;
+  justify-content: center;
+}
+.pill {
+  height: 20px;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-radius: 10px;
+  background-color: #ffffff;
+  justify-content: center;
+  align-items: center;
+}
+.pill-text {
+  height: 20px;
+  line-height: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #000000;
+  text-align: center;
+}
+
+/* --- menu --- */
 .menu {
   width: 212px;
   height: 520px;
@@ -481,6 +593,8 @@ export default {
   justify-content: center;
 }
 .menu-title {
+  height: 26px;
+  line-height: 26px;
   font-size: 20px;
   color: #ffffff;
   margin-bottom: 14px;
@@ -498,11 +612,14 @@ export default {
   background-color: #4a1a16;
 }
 .btn-primary {
-  background-color: #ff7a1a;
+  background-color: #ff9f0a;
 }
 .btn-label {
   font-size: 17px;
   color: #ffffff;
   text-align: center;
+}
+.btn-label-dark {
+  color: #000000;
 }
 </style>

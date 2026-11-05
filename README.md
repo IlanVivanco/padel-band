@@ -4,10 +4,10 @@ A padel scoreboard that runs on the **Xiaomi Smart Band 10**, built as a Xiaomi
 Vela JS quick app (`.rpk`). Tap to score, swipe to fix mistakes, and see every set at
 a glance without leaving the court.
 
-![Pádel on the band: mid-match, tiebreak and golden point](docs/preview.png)
+![Pádel: mid-match, our advantage, tiebreak and match won](docs/preview.png)
 
-<sub>Illustration of the UI (212 × 520 px capsule screen). The app's on-screen
-labels are in Spanish.</sub>
+<sub>Rendered from the compiled app in the test harness (212 × 520 px capsule
+screen). The app's on-screen labels are in Spanish.</sub>
 
 > **Unofficial.** Xiaomi has no public way to install third-party apps, so
 > Pádel is installed by sideloading (see [Install](#install-with-miband-hack)).
@@ -15,16 +15,24 @@ labels are in Spanish.</sub>
 
 ## Features
 
-- **Split screen.** The top half (coral) is the opponents and the bottom half
-  (green) is your team. You don't need labels.
+- **Split screen.** The top half (orange) is the opponents and the bottom half
+  (blue) is your team, on a black panel. Orange/blue stays distinguishable
+  with red-green colour blindness, and black keeps the AMOLED panel cheap on
+  battery.
 - **Scoreboard in the middle.** It has one column per set, with the opponents'
   games on top and yours below. The set in play sits on a grey tile. In a
-  finished set, the loser's number is dimmed.
+  finished set, the winner's number is bold and underlined and the loser's is
+  dimmed.
+- **Clear status cues.**
+  - *Advantage:* the leading half lights up and shows a bold **AD** with
+    *VENTAJA*, while the rival's 40 dims.
+  - *Tiebreak / golden point:* a white pill (`TIE-BREAK`, `PUNTO DE ORO`)
+    appears on the edge of the scoreboard without moving anything else.
+  - *Match over:* the winner's half lights up with **WIN** and *GANAMOS* or
+    *GANAN*, and the other half dims.
 - **Full padel rules.** Points go 0 / 15 / 30 / 40 with deuce and advantage, or
   an optional **golden point** (*punto de oro*). Sets go to 6, won by 2, with a
   **tiebreak** to 7 (won by 2) at 6-6. Matches are best of 3.
-- **Status line.** It shows `TIE-BREAK`, `PUNTO DE ORO` (golden point at
-  40-40) or `FIN DEL PARTIDO` (match over) only when they apply.
 - **Haptics.** You get a short buzz for each point and a long buzz when a point
   wins a game, so you can feel the score without looking.
 - **Keep screen on.** This is optional. The setting is released when you leave
@@ -153,9 +161,17 @@ You need Node.js (tested with v22).
 
 ```sh
 npm install
-npm test        # scoring logic unit tests (plain Node)
-npm run build   # -> dist/com.ilanvivanco.padelband.debug.<version>.rpk
+npm test          # scoring logic unit tests (plain Node)
+npm run test:ui   # layout + gesture tests on the compiled page (needs Playwright + Chromium)
+npm run build     # -> dist/com.ilanvivanco.padelband.debug.<version>.rpk
 ```
+
+`npm run test:ui` builds the plain-JS bundle and drives it in headless
+Chromium through `test/harness/` (adapted from Calc+). It checks that every
+state fits inside the capsule, that the points, scoreboard and pill are
+centred, and that taps and swipes score on the right side. It also saves
+screenshots to `test/screens/`. Run `npm run build` afterwards, because the
+`.rpk` must be the JSC build.
 
 `npm run build` runs `aiot build --enable-jsc`. **Sideload only the debug
 build**, and keep JSC on: the Band 10 won't run plain-JS packages.
@@ -175,7 +191,9 @@ src/
   common/padel.js        pure scoring logic (no system modules)
   common/logo.png        app icon
 test/padel.test.mjs      scoring tests (node --test)
-docs/preview.png         README illustration
+test/ui.test.mjs         layout and gesture tests on the compiled page
+test/harness/            minimal Vela runtime for Chromium (from Calc+)
+docs/preview.png         README screenshots (from the harness)
 ```
 
 The match is stored as the sequence of point winners (`"uutu…"`), and the score
@@ -190,8 +208,8 @@ to the sequence, so the score can't drift out of sync.
 
 ## Credits
 
-The project layout is based on [Calc+](https://github.com/arimwilson/calcplus)
-by Ari Wilson (MIT). [MiBand Hack](https://github.com/ptrinh/miband-hack) by
+The project layout and the test harness are based on
+[Calc+](https://github.com/arimwilson/calcplus) by Ari Wilson (MIT). [MiBand Hack](https://github.com/ptrinh/miband-hack) by
 ptrinh handles the sideloading.
 
 ## License
