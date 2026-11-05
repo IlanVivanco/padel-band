@@ -329,8 +329,9 @@ export default {
     if (w) {
       themPts = w === THEM ? 'WIN' : ''
       usPts = w === US ? 'WIN' : ''
-      themCls = 'pts-win'
-      usCls = 'pts-win'
+      // WIN in the winner's own colour, like their points.
+      themCls = 'pts-them'
+      usCls = 'pts-us'
       themLabel = w === THEM ? 'GANAN' : ''
       usLabel = w === US ? 'GANAMOS' : ''
       themHi = w === THEM
@@ -490,9 +491,6 @@ export default {
 }
 .pts-us-dim {
   color: #2d5f73;
-}
-.pts-win {
-  color: #ffffff;
 }
 /* Same box as .points, so the bar sits exactly where the digits' ink does. */
 .lost {

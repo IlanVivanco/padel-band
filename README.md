@@ -1,3 +1,5 @@
+<img src="docs/icon.png" alt="Pádel icon" width="96" align="right">
+
 # Pádel — padel score counter for Xiaomi Smart Band 10
 
 A padel scoreboard that runs on the **Xiaomi Smart Band 10**, built as a Xiaomi
@@ -28,8 +30,8 @@ screen). The app's on-screen labels are in Spanish.</sub>
     *VENTAJA*, while the rival's 40 dims.
   - *Tiebreak / golden point:* a white pill (`TIE-BREAK`, `PUNTO DE ORO`)
     appears on the edge of the scoreboard without moving anything else.
-  - *Match over:* the winner's half lights up with **WIN** and *GANAMOS* or
-    *GANAN*, and the other half dims.
+  - *Match over:* the winner's half lights up with **WIN** in its colour and *GANAMOS*
+    or *GANAN*, and the other half shows a dimmed bar.
 - **Full padel rules.** Points go 0 / 15 / 30 / 40 with deuce and advantage, or
   an optional **golden point** (*punto de oro*). Sets go to 6, won by 2, with a
   **tiebreak** to 7 (won by 2) at 6-6. Matches are best of 3.
@@ -189,7 +191,7 @@ src/
   app.ux                 app entry
   pages/index/index.ux   screen layout, gestures, menu
   common/padel.js        pure scoring logic (no system modules)
-  common/logo.png        app icon
+  common/logo.png        app icon (120 × 120)
 test/padel.test.mjs      scoring tests (node --test)
 test/ui.test.mjs         layout and gesture tests on the compiled page
 test/harness/            minimal Vela runtime for Chromium (from Calc+)
