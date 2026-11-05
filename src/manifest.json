@@ -1,8 +1,8 @@
 {
   "package": "com.ilanvivanco.padelband",
   "name": "Pádel",
-  "versionName": "0.3.0",
-  "versionCode": 5,
+  "versionName": "0.3.1",
+  "versionCode": 6,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "deviceTypeList": [

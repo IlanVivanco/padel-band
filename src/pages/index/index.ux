@@ -11,7 +11,8 @@
       <div id="half-them" class="half {{ themBg }}"
            ontouchstart="startThem" ontouchmove="move" ontouchend="endThem" ontouchcancel="cancel" onlongpress="openMenu">
         <text id="label-them" class="label label-them">{{ themLabel }}</text>
-        <text id="pts-them" class="points {{ themPtsCls }}">{{ themPts }}</text>
+        <text id="pts-them" class="points {{ themPtsCls }}" if="{{ !themLost }}">{{ themPts }}</text>
+        <div id="lost-them" class="lost" if="{{ themLost }}"><div class="lost-bar"></div></div>
         <text class="label"></text>
       </div>
 
@@ -47,7 +48,8 @@
       <div id="half-us" class="half {{ usBg }}"
            ontouchstart="startUs" ontouchmove="move" ontouchend="endUs" ontouchcancel="cancel" onlongpress="openMenu">
         <text class="label"></text>
-        <text id="pts-us" class="points {{ usPtsCls }}">{{ usPts }}</text>
+        <text id="pts-us" class="points {{ usPtsCls }}" if="{{ !usLost }}">{{ usPts }}</text>
+        <div id="lost-us" class="lost" if="{{ usLost }}"><div class="lost-bar"></div></div>
         <text id="label-us" class="label label-us">{{ usLabel }}</text>
       </div>
 
@@ -110,6 +112,8 @@ export default {
     usPtsCls: 'pts-us',
     themLabel: '',
     usLabel: '',
+    themLost: false,
+    usLost: false,
     themBg: '',
     usBg: '',
     colOn: [true, false, false],
@@ -323,21 +327,21 @@ export default {
     var themLabel = '', usLabel = ''
     var themHi = false, usHi = false
     if (w) {
-      themPts = w === THEM ? 'WIN' : '-'
-      usPts = w === US ? 'WIN' : '-'
-      themCls = w === THEM ? 'pts-win' : 'pts-lose'
-      usCls = w === US ? 'pts-win' : 'pts-lose'
+      themPts = w === THEM ? 'WIN' : ''
+      usPts = w === US ? 'WIN' : ''
+      themCls = 'pts-win'
+      usCls = 'pts-win'
       themLabel = w === THEM ? 'GANAN' : ''
       usLabel = w === US ? 'GANAMOS' : ''
       themHi = w === THEM
       usHi = w === US
     } else if (adv === US) {
-      usCls = 'pts-us pts-ad'
+      usCls = 'pts-us'
       themCls = 'pts-them-dim'
       usLabel = 'VENTAJA'
       usHi = true
     } else if (adv === THEM) {
-      themCls = 'pts-them pts-ad'
+      themCls = 'pts-them'
       usCls = 'pts-us-dim'
       themLabel = 'VENTAJA'
       themHi = true
@@ -348,6 +352,10 @@ export default {
     this.usPtsCls = usCls
     this.themLabel = themLabel
     this.usLabel = usLabel
+    // The loser's half shows a drawn bar, not a '-' glyph: a dash sits at the
+    // font's mid-height, well below the centre of the digits.
+    this.themLost = w === US
+    this.usLost = w === THEM
 
     // A flash wins over the tint while it lasts.
     var fs = flash ? flash[0] : ''
@@ -409,7 +417,9 @@ export default {
 /* Palette: black panel, orange for them, blue for us.
    them  #ff9f0a  dim #734804  set-dim #5c4520  tint #3a2405  flash #5c3a08
    us    #64d2ff  dim #2d5f73  set-dim #245066  tint #062b40  flash #0a4766
-   Layout (px): half 200 | board 120 | half 200 = 520. */
+   Layout (px): half 200 | board 120 | half 200 = 520.
+   Big points: one style for digits, AD and WIN (88 px bold; WIN is the
+   widest text that fits the capsule's rounded ends). */
 .page {
   width: 212px;
   height: 520px;
@@ -465,7 +475,8 @@ export default {
   width: 212px;
   height: 112px;
   line-height: 112px;
-  font-size: 96px;
+  font-size: 88px;
+  font-weight: bold;
   text-align: center;
 }
 .pts-them {
@@ -480,17 +491,21 @@ export default {
 .pts-us-dim {
   color: #2d5f73;
 }
-.pts-ad {
-  font-weight: bold;
-}
 .pts-win {
-  font-size: 64px;
-  font-weight: bold;
   color: #ffffff;
 }
-.pts-lose {
-  font-size: 64px;
-  color: #444444;
+/* Same box as .points, so the bar sits exactly where the digits' ink does. */
+.lost {
+  width: 212px;
+  height: 112px;
+  justify-content: center;
+  align-items: center;
+}
+.lost-bar {
+  width: 44px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #444444;
 }
 
 /* --- scoreboard --- */

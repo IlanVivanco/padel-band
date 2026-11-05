@@ -165,6 +165,32 @@ test('the pill is centred on the board / us edge and moves nothing', async () =>
   }
 })
 
+test('every big-points glyph uses one size and weight', async () => {
+  for (const [name, args] of Object.entries(STATES)) {
+    const page = await open(...args)
+    const styles = await page.evaluate(() =>
+      ['pts-them', 'pts-us'].map((id) => document.getElementById(id)).filter(Boolean)
+        .map((el) => { const cs = getComputedStyle(el); return cs.fontSize + ' ' + cs.fontWeight })
+    )
+    for (const st of styles) assert.equal(st, '88px 700', name)
+    await page.close()
+  }
+})
+
+test("the loser's bar sits where the digits' centre is", async () => {
+  for (const [name, id, cy] of [['07-win-us', 'lost-them', 100], ['08-win-them', 'lost-us', 420]]) {
+    const page = await open(...STATES[name])
+    const b = await page.evaluate((id) => {
+      const s = document.getElementById('screen').getBoundingClientRect()
+      const r = document.querySelector('#' + id + ' .lost-bar').getBoundingClientRect()
+      return { cx: r.left - s.left + r.width / 2, cy: r.top - s.top + r.height / 2 }
+    }, id)
+    near(b.cx, 106, name + ' bar x')
+    near(b.cy, cy, name + ' bar y')
+    await page.close()
+  }
+})
+
 test('labels and texts for each state', async () => {
   const t = async (name, ids) => {
     const page = await open(...STATES[name])
@@ -177,7 +203,7 @@ test('labels and texts for each state', async () => {
   assert.deepEqual(await t('04-ad-them', ['pts-them', 'label-them']), { 'pts-them': 'AD', 'label-them': 'VENTAJA' })
   assert.deepEqual(await t('05-golden', ['pill', 'pts-us', 'pts-them']), { pill: 'PUNTO DE ORO', 'pts-us': '40', 'pts-them': '40' })
   assert.deepEqual(await t('06-tiebreak', ['pill']), { pill: 'TIE-BREAK' })
-  assert.deepEqual(await t('07-win-us', ['pts-us', 'label-us', 'pts-them']), { 'pts-us': 'WIN', 'label-us': 'GANAMOS', 'pts-them': '-' })
+  assert.deepEqual(await t('07-win-us', ['pts-us', 'label-us', 'pts-them']), { 'pts-us': 'WIN', 'label-us': 'GANAMOS', 'pts-them': null })
   assert.deepEqual(await t('08-win-them', ['pts-them', 'label-them']), { 'pts-them': 'WIN', 'label-them': 'GANAN' })
 })
 
