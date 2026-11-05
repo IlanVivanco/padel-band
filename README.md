@@ -1,49 +1,199 @@
-# Pádel (MVP) para Xiaomi Smart Band 10
+# Pádel — padel score counter for Xiaomi Smart Band 10
 
-Marcador de pádel como Vela JS quick app (`.rpk`), pantalla 212 × 520.
+A padel scoreboard that runs on the **Xiaomi Smart Band 10**, built as a Xiaomi
+Vela JS quick app (`.rpk`). Tap to score, swipe to fix mistakes, and see every set at
+a glance without leaving the court.
 
-## Uso
+![Pádel on the band: mid-match, tiebreak and golden point](docs/preview.png)
 
-- Mitad de **arriba (coral) = ellos**, mitad de **abajo (verde) = nosotros**.
-- **Toque o swipe a la derecha** sobre una mitad: punto para ese lado.
-- **Swipe a la izquierda**: le resta un punto a ese lado (si fue el último
-  punto jugado, lo deshace aunque haya cerrado un juego o set).
-- Centro: marcador por sets (juegos de ellos arriba, nuestros abajo). El set
-  en juego va sobre fondo gris; en los sets terminados se atenúa el perdedor.
-  Debajo aparece TIE-BREAK, PUNTO DE ORO (a 40-40) o FIN DEL PARTIDO.
-- Vibración corta por punto, larga cuando el punto cierra un juego.
-- **Mantener presionado** en cualquier mitad: menú (reiniciar partido, punto
-  de oro, pantalla fija, salir).
-- El swipe a la derecha no cierra la app: para salir, usá **Salir** en el menú.
+<sub>Illustration of the UI (212 × 520 px capsule screen). The app's on-screen
+labels are in Spanish.</sub>
 
-Reglas: 0/15/30/40, deuce y ventaja (o punto de oro), sets a 6 por 2,
-tie-break a 7 por 2 en 6-6, al mejor de 3.
+> **Unofficial.** Xiaomi has no public way to install third-party apps, so
+> Pádel is installed by sideloading (see [Install](#install-with-miband-hack)).
+> This project isn't affiliated with Xiaomi.
 
-El estado se guarda en cada punto, así que sobrevive si la banda mata la app.
+## Features
 
-## Build e instalación
+- **Split screen.** The top half (coral) is the opponents and the bottom half
+  (green) is your team. You don't need labels.
+- **Scoreboard in the middle.** It has one column per set, with the opponents'
+  games on top and yours below. The set in play sits on a grey tile. In a
+  finished set, the loser's number is dimmed.
+- **Full padel rules.** Points go 0 / 15 / 30 / 40 with deuce and advantage, or
+  an optional **golden point** (*punto de oro*). Sets go to 6, won by 2, with a
+  **tiebreak** to 7 (won by 2) at 6-6. Matches are best of 3.
+- **Status line.** It shows `TIE-BREAK`, `PUNTO DE ORO` (golden point at
+  40-40) or `FIN DEL PARTIDO` (match over) only when they apply.
+- **Haptics.** You get a short buzz for each point and a long buzz when a point
+  wins a game, so you can feel the score without looking.
+- **Keep screen on.** This is optional. The setting is released when you leave
+  the app.
+- **Nothing is lost.** The match is saved after every point, so it survives if
+  the band closes the app.
+
+## How to use it
+
+| Gesture | On the top half (them) | On the bottom half (us) |
+| --- | --- | --- |
+| **Tap** or **swipe right** | +1 point to them | +1 point to us |
+| **Swipe left** | −1 point to them | −1 point to us |
+| **Long-press** (anywhere) | Opens the menu | Opens the menu |
+
+**Swipe left** removes that side's most recent point. If that point was the
+last one played, it's fully undone, even if it closed a game or a set.
+
+**Menu:**
+
+- *Reiniciar partido*: start a new match.
+- *Punto de oro: Sí / No*: turn the golden point on or off.
+- *Pantalla fija: Sí / No*: keep the screen on while the app is open.
+- *Salir*: exit the app.
+- *Volver*: go back to the score.
+
+> A right swipe adds a point here, so it **doesn't close the app** as it does
+> elsewhere on the band. Use **Salir** in the menu to exit.
+
+## Download
+
+Get the latest `.rpk` from
+[Releases](https://github.com/IlanVivanco/padel-band/releases). Release builds
+are debug-signed and compiled to JSC bytecode, which is what the band needs to
+sideload them.
+
+## Install with MiBand Hack
+
+[MiBand Hack](https://miband.trinh.uk)
+([source](https://github.com/ptrinh/miband-hack)) is a web app that installs
+`.rpk` apps on Mi Band 8 / 9 / 10 straight from the browser over Bluetooth.
+You don't need to install anything.
+
+### What you need
+
+- **Chrome or Edge.** Safari and Firefox don't support Web Serial or Web
+  Bluetooth. It has been tested from Chrome on Android. On Windows and Linux,
+  desktop Chrome or Edge works too. On Linux you may need to turn on
+  `chrome://flags/#enable-experimental-web-platform-features`. For macOS, see
+  [Troubleshooting](#troubleshooting).
+- **The band already paired with Mi Fitness.** That pairing is what produces
+  the auth key.
+- **The `.rpk`** from [Releases](https://github.com/IlanVivanco/padel-band/releases).
+
+### 1. Get the auth key
+
+Open [miband.trinh.uk](https://miband.trinh.uk). In **step 1**, sign in with
+your Xiaomi account to fetch your band's auth key. The site uses the login once
+and doesn't store it. The site lists other ways to get the key under *Other
+ways to get the auth key*.
+
+> The key changes if you **unpair the band in Mi Fitness or reset it**. If
+> that happens, fetch it again.
+
+### 2. Free the band
+
+The band talks to only one device at a time.
+
+- **Force-stop Mi Fitness**: Settings → Apps → Mi Fitness → Force stop. If you
+  skip this, Mi Fitness reconnects and takes the connection.
+- If you're installing from a **computer**, also turn off Bluetooth on your
+  phone in its Settings, not just in quick settings.
+
+### 3. Pair the band with this device (first time only)
+
+1. If the band is already listed in this device's Bluetooth settings, remove
+   it.
+2. On the band, open **Settings → System → Connect to new phone** and keep
+   that screen open.
+3. Pair the band from this device's Bluetooth settings.
+4. When pairing is done, return the band to its watch face.
+
+### 4. Connect
+
+In **step 2 (Connect)**, choose **Bluetooth Classic (SPP)**. The Smart Band 10
+uses Bluetooth Classic, so it appears as a serial port. It doesn't show up in
+the Bluetooth Low Energy scan.
+
+1. Pick the band's port. On Windows, if there are two COM ports, it's usually
+   the *outgoing* one.
+2. If the band shows a pairing prompt, accept it on the band.
+3. The first attempt often times out. Press **Connect** again.
+4. A green **Connected** dot appears with the model and battery level.
+
+### 5. Install
+
+In **step 4 (Or install your own file)**, drop the `.rpk` file into the box and
+press **Install to band**. When it finishes, open the app list on the band and
+look for **Pádel**.
+
+To update, install the newer `.rpk` the same way. It replaces the old version
+and keeps the saved match.
+
+### Troubleshooting
+
+| What you see | What to do |
+| --- | --- |
+| The band doesn't appear when searching | Use **Bluetooth Classic (SPP)**, not BLE, and pair the band in the OS first (step 3). |
+| `This .rpk contains plain JavaScript; the Mi Band 10 crashes on it` | The file wasn't compiled to bytecode. Use a release build, or build with `npm run build` (it passes `--enable-jsc`). |
+| `Failed to open serial port` | Something else holds the port. Close other MiBand Hack tabs, force-stop Mi Fitness, toggle Bluetooth off and on, then reconnect. |
+| `No reply from band` | The band is still on *Connect to new phone*, or Mi Fitness is connected. Return to the watch face, free the band (step 2) and reconnect. |
+| `Authentication timed out` | The phone is still holding the connection. Turn its Bluetooth fully off and retry. |
+| `NO_BOUND`, or the link drops before authentication | Repeat step 3. If the band was re-paired with Mi Fitness, get a new key. |
+| macOS: the port won't open | Chrome on macOS can't open the band's Bluetooth Classic port. Use MiBand Hack's *Mac helper* (run it locally; see its [guide](https://github.com/ptrinh/miband-hack/blob/main/docs/GUIDE.md)), or install from an Android phone. |
+
+### Other ways to install
+
+- **Notify for Xiaomi** (Android, paid): open the `.rpk` with Notify, check that it says *Valid app
+  file*, and tap **Install**.
+- **[AstroBox](https://astrobox.online)**: install the `.rpk` over Bluetooth.
+  It needs your Xiaomi account and the band's auth key.
+
+## Build from source
+
+You need Node.js (tested with v22).
 
 ```sh
 npm install
-npm test          # tests de la lógica de puntuación (Node puro)
-npm run build     # -> dist/com.ilanvivanco.padelband.debug.<versión>.rpk (bytecode JSC)
+npm test        # scoring logic unit tests (plain Node)
+npm run build   # -> dist/com.ilanvivanco.padelband.debug.<version>.rpk
 ```
 
-Instalá el `.rpk` **debug** con MiBand Hack, Notify o AstroBox.
-Para actualizar, subí `versionCode` y `versionName` en `src/manifest.json`.
+`npm run build` runs `aiot build --enable-jsc`. **Sideload only the debug
+build**, and keep JSC on: the Band 10 won't run plain-JS packages.
 
-## Estructura
+To ship an update, bump `versionCode` and `versionName` in
+`src/manifest.json`. Keep the package name (`com.ilanvivanco.padelband`)
+unchanged. If it changes, the update won't install over the old version and the
+saved match is lost.
 
-- `src/common/padel.js`: lógica pura. El partido es la lista de ganadores de
-  cada punto y el marcador se recalcula siempre desde ahí.
-- `src/pages/index/index.ux`: pantalla, gestos y menú.
-- `test/padel.test.mjs`: tests de la lógica.
+### Project structure
 
-## Créditos
+```
+src/
+  manifest.json          app id, version, features (storage, vibrator, brightness, app)
+  app.ux                 app entry
+  pages/index/index.ux   screen layout, gestures, menu
+  common/padel.js        pure scoring logic (no system modules)
+  common/logo.png        app icon
+test/padel.test.mjs      scoring tests (node --test)
+docs/preview.png         README illustration
+```
 
-La estructura del proyecto se basó en [Calc+](https://github.com/arimwilson/calcplus)
-de Ari Wilson (MIT).
+The match is stored as the sequence of point winners (`"uutu…"`), and the score
+is always derived by replaying that sequence. Undo and subtract are just edits
+to the sequence, so the score can't drift out of sync.
 
-## Licencia
+## Roadmap ideas
 
-MIT
+- Serve indicator
+- Configurable match format (single set, super tiebreak instead of a third set)
+- Match summary and history
+
+## Credits
+
+The project layout is based on [Calc+](https://github.com/arimwilson/calcplus)
+by Ari Wilson (MIT). [MiBand Hack](https://github.com/ptrinh/miband-hack) by
+ptrinh handles the sideloading.
+
+## License
+
+[MIT](LICENSE) © Ilán Vivanco
