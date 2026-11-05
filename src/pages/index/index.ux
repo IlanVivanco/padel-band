@@ -1,0 +1,508 @@
+<template>
+  <div class="page">
+    <!-- Score view. Top half (coral) is them, bottom half (green) is us; the
+         same colours run through the scoreboard in the middle, so no labels
+         are needed. Tap or swipe right on a half: point for that side. Swipe
+         left: take one away. Long-press: menu. -->
+    <div class="score" if="{{ !menu }}">
+      <div id="half-them" class="half half-them {{ flashThem }}"
+           ontouchstart="startThem" ontouchmove="move" ontouchend="endThem" ontouchcancel="cancel" onlongpress="openMenu">
+        <text class="points points-them {{ themPtsCls }}">{{ themPts }}</text>
+      </div>
+
+      <!-- Scoreboard: one column per set (games them over games us). The
+           current set sits on a lighter tile; in finished sets the loser's
+           number is dimmed. -->
+      <div class="board">
+        <div class="board-row">
+          <div class="col {{ colCur[0] ? 'col-cur' : '' }}" if="{{ colOn[0] }}">
+            <text class="num num-them {{ colThemDim[0] ? 'num-them-dim' : '' }}">{{ colThem[0] }}</text>
+            <text class="num num-us {{ colUsDim[0] ? 'num-us-dim' : '' }}">{{ colUs[0] }}</text>
+          </div>
+          <div class="col {{ colCur[1] ? 'col-cur' : '' }}" if="{{ colOn[1] }}">
+            <text class="num num-them {{ colThemDim[1] ? 'num-them-dim' : '' }}">{{ colThem[1] }}</text>
+            <text class="num num-us {{ colUsDim[1] ? 'num-us-dim' : '' }}">{{ colUs[1] }}</text>
+          </div>
+          <div class="col {{ colCur[2] ? 'col-cur' : '' }}" if="{{ colOn[2] }}">
+            <text class="num num-them {{ colThemDim[2] ? 'num-them-dim' : '' }}">{{ colThem[2] }}</text>
+            <text class="num num-us {{ colUsDim[2] ? 'num-us-dim' : '' }}">{{ colUs[2] }}</text>
+          </div>
+        </div>
+        <text class="caption {{ captionCls }}" if="{{ caption }}">{{ caption }}</text>
+      </div>
+
+      <div id="half-us" class="half half-us {{ flashUs }}"
+           ontouchstart="startUs" ontouchmove="move" ontouchend="endUs" ontouchcancel="cancel" onlongpress="openMenu">
+        <text class="points points-us {{ usPtsCls }}">{{ usPts }}</text>
+      </div>
+    </div>
+
+    <!-- Menu: reset, golden point, keep screen on, exit, back. -->
+    <div class="menu" if="{{ menu }}">
+      <text class="menu-title">Menú</text>
+      <div id="m-reset" class="btn btn-danger" onclick="resetMatch"><text class="btn-label">Reiniciar partido</text></div>
+      <div id="m-golden" class="btn" onclick="toggleGolden"><text class="btn-label">Punto de oro: {{ golden ? 'Sí' : 'No' }}</text></div>
+      <div id="m-screen" class="btn" onclick="toggleScreen"><text class="btn-label">Pantalla fija: {{ keepOn ? 'Sí' : 'No' }}</text></div>
+      <div id="m-exit" class="btn" onclick="exitApp"><text class="btn-label">Salir</text></div>
+      <div id="m-back" class="btn btn-primary" onclick="closeMenu"><text class="btn-label">Volver</text></div>
+    </div>
+  </div>
+</template>
+
+<script>
+import storage from '@system.storage'
+import vibrator from '@system.vibrator'
+import brightness from '@system.brightness'
+import app from '@system.app'
+import {
+  US, THEM, newMatch, score, addPoint, removePoint, setGolden, pointLabels,
+  serialize, deserialize
+} from '../../common/padel'
+
+var STORE_KEY = 'padel-band-state'
+var PREFS_KEY = 'padel-band-prefs'
+var MIN_DX = 30 // px of horizontal travel for a swipe
+var TAP_SLOP = 12 // px a tap may wander
+var TAP_MS = 450 // longer than this is not a tap (long-press opens the menu)
+var FLASH_MS = 220
+
+// Held outside `private` so the framework doesn't make them reactive.
+var match = newMatch(false)
+var touch = null // { x, y, lastX, lastY, t } while a finger is down
+var flashTimer = null
+
+function pointOf(evt, list) {
+  var l = evt && evt[list]
+  if (l && l.length) return l[0]
+  return null
+}
+
+export default {
+  private: {
+    menu: false,
+    golden: false,
+    keepOn: true,
+    usPts: '0',
+    themPts: '0',
+    colOn: [true, false, false],
+    colCur: [true, false, false],
+    colThem: ['0', '', ''],
+    colUs: ['0', '', ''],
+    colThemDim: [false, false, false],
+    colUsDim: [false, false, false],
+    usPtsCls: '',
+    themPtsCls: '',
+    caption: '',
+    captionCls: '',
+    winner: '',
+    flashThem: '',
+    flashUs: ''
+  },
+
+  onInit() {
+    var page = this
+    match = newMatch(false)
+    this.render()
+    try {
+      storage.get({
+        key: STORE_KEY,
+        default: '',
+        success: function (data) {
+          match = deserialize(data)
+          page.render()
+        }
+      })
+      storage.get({
+        key: PREFS_KEY,
+        default: '',
+        success: function (data) {
+          try {
+            var o = JSON.parse(data)
+            if (o && typeof o.keepOn === 'boolean') page.keepOn = o.keepOn
+          } catch (e) {}
+          page.applyScreen()
+        }
+      })
+    } catch (e) {}
+  },
+
+  onShow() {
+    this.applyScreen()
+    this.render()
+  },
+
+  onHide() {
+    this.save()
+    this.setScreen(false)
+  },
+
+  onDestroy() {
+    this.save()
+    this.setScreen(false)
+  },
+
+  // The system treats a right swipe as "back". While the score view is up,
+  // a right swipe is a point, so it must not close the app; Salir in the
+  // menu exits instead.
+  onBackPress() {
+    if (this.menu) {
+      this.menu = false
+      return true
+    }
+    return true
+  },
+
+  // --- gestures -----------------------------------------------------------
+
+  start(evt) {
+    var p = pointOf(evt, 'touches') || pointOf(evt, 'changedTouches')
+    if (!p) return
+    touch = { x: p.clientX, y: p.clientY, lastX: p.clientX, lastY: p.clientY, t: Date.now() }
+  },
+
+  move(evt) {
+    var p = pointOf(evt, 'touches') || pointOf(evt, 'changedTouches')
+    if (!p || !touch) return
+    touch.lastX = p.clientX
+    touch.lastY = p.clientY
+  },
+
+  end(evt, side) {
+    if (!touch) return
+    var p = pointOf(evt, 'changedTouches')
+    var x = p ? p.clientX : touch.lastX
+    var y = p ? p.clientY : touch.lastY
+    var dx = x - touch.x
+    var dy = y - touch.y
+    var held = Date.now() - touch.t
+    touch = null
+    // Tap: point for that side.
+    if (Math.abs(dx) <= TAP_SLOP && Math.abs(dy) <= TAP_SLOP && held <= TAP_MS) {
+      this.add(side)
+      return
+    }
+    // Horizontal swipe: right adds, left subtracts.
+    if (Math.abs(dx) < MIN_DX || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    if (dx > 0) this.add(side)
+    else this.remove(side)
+  },
+
+  // A cancelled touch (e.g. the system took the gesture) never scores.
+  cancel() {
+    touch = null
+  },
+
+  startThem(evt) { this.start(evt) },
+  startUs(evt) { this.start(evt) },
+  endThem(evt) { this.end(evt, THEM) },
+  endUs(evt) { this.end(evt, US) },
+
+  // --- scoring ------------------------------------------------------------
+
+  add(side) {
+    var next = addPoint(match, side)
+    if (next === match) return
+    match = next
+    // A long buzz when the point closes a game, so it's felt without looking.
+    var s = score(match)
+    var closedGame = s.points.u === 0 && s.points.t === 0
+    this.changed(side + '+', closedGame ? 'long' : 'short')
+  },
+
+  remove(side) {
+    var next = removePoint(match, side)
+    if (next === match) return
+    match = next
+    this.changed(side + '-', 'short')
+  },
+
+  changed(flash, buzz) {
+    // Saved on every change: the band can kill the app while the screen is off.
+    this.save()
+    this.render()
+    this.buzz(buzz)
+    this.showFlash(flash)
+  },
+
+  buzz(mode) {
+    try { vibrator.vibrate({ mode: mode }) } catch (e) {}
+  },
+
+  // f is side + sign, e.g. 'u+' or 't-'.
+  showFlash(f) {
+    var page = this
+    var add = f[1] === '+'
+    this.flashUs = f[0] === US ? (add ? 'flash-add-us' : 'flash-sub') : ''
+    this.flashThem = f[0] === THEM ? (add ? 'flash-add-them' : 'flash-sub') : ''
+    if (flashTimer) clearTimeout(flashTimer)
+    flashTimer = setTimeout(function () {
+      page.flashUs = ''
+      page.flashThem = ''
+      flashTimer = null
+    }, FLASH_MS)
+  },
+
+  // --- menu ---------------------------------------------------------------
+
+  openMenu() {
+    touch = null
+    this.menu = true
+  },
+
+  closeMenu() {
+    this.menu = false
+  },
+
+  resetMatch() {
+    match = newMatch(match.golden)
+    this.save()
+    this.render()
+    this.menu = false
+  },
+
+  toggleGolden() {
+    match = setGolden(match, !match.golden)
+    this.save()
+    this.render()
+  },
+
+  toggleScreen() {
+    this.keepOn = !this.keepOn
+    this.applyScreen()
+    try { storage.set({ key: PREFS_KEY, value: JSON.stringify({ keepOn: this.keepOn }) }) } catch (e) {}
+  },
+
+  exitApp() {
+    this.save()
+    this.setScreen(false)
+    try { app.terminate() } catch (e) {}
+  },
+
+  // --- helpers ------------------------------------------------------------
+
+  applyScreen() {
+    this.setScreen(this.keepOn)
+  },
+
+  setScreen(on) {
+    try { brightness.setKeepScreenOn({ keepScreenOn: on }) } catch (e) {}
+  },
+
+  save() {
+    try { storage.set({ key: STORE_KEY, value: serialize(match) }) } catch (e) {}
+  },
+
+  render() {
+    var s = score(match)
+    var l = pointLabels(s, match.golden)
+    this.golden = match.golden
+    this.winner = s.winner || ''
+    this.usPtsCls = s.winner === US ? 'points-win' : (s.winner === THEM ? 'points-lose' : '')
+    this.themPtsCls = s.winner === THEM ? 'points-win' : (s.winner === US ? 'points-lose' : '')
+    if (s.winner) {
+      this.usPts = s.winner === US ? 'WIN' : '-'
+      this.themPts = s.winner === THEM ? 'WIN' : '-'
+    } else {
+      this.usPts = l.u
+      this.themPts = l.t
+    }
+
+    // Scoreboard columns: finished sets, then the current one.
+    var cols = []
+    for (var i = 0; i < s.setScores.length; i++) {
+      var u = s.setScores[i][0]
+      var t = s.setScores[i][1]
+      cols.push({ t: String(t), u: String(u), tDim: t < u, uDim: u < t, cur: false })
+    }
+    if (!s.winner) {
+      cols.push({ t: String(s.games.t), u: String(s.games.u), tDim: false, uDim: false, cur: true })
+    }
+    var on = [], cur = [], ct = [], cu = [], td = [], ud = []
+    for (var k = 0; k < 3; k++) {
+      var c = cols[k]
+      on.push(!!c)
+      cur.push(c ? c.cur : false)
+      ct.push(c ? c.t : '')
+      cu.push(c ? c.u : '')
+      td.push(c ? c.tDim : false)
+      ud.push(c ? c.uDim : false)
+    }
+    this.colOn = on
+    this.colCur = cur
+    this.colThem = ct
+    this.colUs = cu
+    this.colThemDim = td
+    this.colUsDim = ud
+
+    // Caption under the board: only when something special is going on.
+    var caption = ''
+    var cls = ''
+    if (s.winner) {
+      caption = 'FIN DEL PARTIDO'
+      cls = 'caption-fin'
+    } else if (s.tiebreak) {
+      caption = 'TIE-BREAK'
+      cls = 'caption-tb'
+    } else if (match.golden && s.points.u === 3 && s.points.t === 3) {
+      caption = 'PUNTO DE ORO'
+      cls = 'caption-oro'
+    }
+    this.caption = caption
+    this.captionCls = cls
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 212px;
+  height: 520px;
+  flex-direction: column;
+  background-color: #000000;
+}
+.score {
+  width: 212px;
+  height: 520px;
+  flex-direction: column;
+}
+
+/* Each half is one big touch target, tinted in its side's colour. */
+.half {
+  width: 212px;
+  height: 200px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.half-them {
+  background-color: #2a0f0c;
+}
+.half-us {
+  background-color: #0b2614;
+}
+.flash-add-them {
+  background-color: #5a2019;
+}
+.flash-add-us {
+  background-color: #17572d;
+}
+.flash-sub {
+  background-color: #3a3a3a;
+}
+.points {
+  width: 212px;
+  font-size: 96px;
+  text-align: center;
+}
+.points-them {
+  color: #ffd6d0;
+}
+.points-us {
+  color: #d3f8de;
+}
+.points-win {
+  font-size: 64px;
+  color: #ffcc00;
+}
+.points-lose {
+  color: #555555;
+}
+
+/* Scoreboard */
+.board {
+  width: 212px;
+  height: 120px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #000000;
+}
+.board-row {
+  width: 212px;
+  height: 104px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.col {
+  width: 58px;
+  height: 104px;
+  margin-left: 4px;
+  margin-right: 4px;
+  border-radius: 12px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.col-cur {
+  background-color: #2b2b2b;
+}
+.num {
+  width: 58px;
+  font-size: 40px;
+  height: 48px;
+  text-align: center;
+}
+.num-them {
+  color: #ff6b57;
+}
+.num-us {
+  color: #3ddc84;
+}
+.num-them-dim {
+  color: #6e322a;
+}
+.num-us-dim {
+  color: #1d5e37;
+}
+.caption {
+  width: 212px;
+  height: 16px;
+  margin-top: 0px;
+  font-size: 13px;
+  color: #8c8c8c;
+  text-align: center;
+}
+.caption-tb {
+  color: #ffcc00;
+}
+.caption-oro {
+  color: #ffcc00;
+}
+.caption-fin {
+  color: #ffffff;
+}
+
+.menu {
+  width: 212px;
+  height: 520px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.menu-title {
+  font-size: 20px;
+  color: #ffffff;
+  margin-bottom: 14px;
+}
+.btn {
+  width: 184px;
+  height: 58px;
+  margin-top: 8px;
+  border-radius: 16px;
+  justify-content: center;
+  align-items: center;
+  background-color: #262626;
+}
+.btn-danger {
+  background-color: #4a1a16;
+}
+.btn-primary {
+  background-color: #ff7a1a;
+}
+.btn-label {
+  font-size: 17px;
+  color: #ffffff;
+  text-align: center;
+}
+</style>
