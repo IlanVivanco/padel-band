@@ -83,15 +83,33 @@
       </div>
     </div>
 
-    <!-- Menu: reset, who served first, golden point, keep screen on, exit, back. -->
-    <div class="menu" if="{{ menu }}">
-      <text class="menu-title">Menú</text>
-      <div id="m-reset" class="btn btn-danger" onclick="resetMatch"><text class="btn-label">Reiniciar partido</text></div>
-      <div id="m-first" class="btn" onclick="toggleFirst"><div class="btn-ball"></div><text class="btn-label">Saque: {{ firstUs ? 'Nosotros' : 'Ellos' }}</text></div>
-      <div id="m-golden" class="btn" onclick="toggleGolden"><text class="btn-label">Punto de oro: {{ golden ? 'Sí' : 'No' }}</text></div>
-      <div id="m-screen" class="btn" onclick="toggleScreen"><text class="btn-label">Pantalla fija: {{ keepOn ? 'Sí' : 'No' }}</text></div>
+    <!-- Menu: close on top, three toggles (who served first, golden point,
+         keep screen on), then the two actions. The toggle knob is a flex
+         child pushed left or right, so no absolute positioning is needed. -->
+    <div class="menu" if="{{ menu && !confirm }}">
+      <div id="m-close" class="close" onclick="closeMenu"><text class="close-label">×</text></div>
+      <div id="m-first" class="row" onclick="toggleFirst">
+        <text class="row-label {{ firstUs ? 'row-label-us' : 'row-label-them' }}">{{ firstUs ? 'Sacamos' : 'Sacan' }}</text>
+        <div class="tg {{ firstUs ? 'tg-us' : 'tg-them' }}"><div class="knob knob-on"></div></div>
+      </div>
+      <div id="m-golden" class="row" onclick="toggleGolden">
+        <text class="row-label">Punto de oro</text>
+        <div class="tg {{ golden ? 'tg-on' : '' }}"><div class="knob {{ golden ? 'knob-on' : '' }}"></div></div>
+      </div>
+      <div id="m-screen" class="row" onclick="toggleScreen">
+        <text class="row-label">Pantalla fija</text>
+        <div class="tg {{ keepOn ? 'tg-on' : '' }}"><div class="knob {{ keepOn ? 'knob-on' : '' }}"></div></div>
+      </div>
+      <div id="m-reset" class="btn btn-new btn-first" onclick="askReset"><text class="btn-label btn-label-new">Nuevo partido</text></div>
       <div id="m-exit" class="btn" onclick="exitApp"><text class="btn-label">Salir</text></div>
-      <div id="m-back" class="btn btn-primary" onclick="closeMenu"><text class="btn-label btn-label-dark">Volver</text></div>
+    </div>
+
+    <!-- New match asks first: it's the one step that can't be undone. -->
+    <div class="menu" if="{{ menu && confirm }}">
+      <text class="confirm-title">¿Nuevo partido?</text>
+      <text class="confirm-hint">Se borra el actual</text>
+      <div id="m-reset-yes" class="btn btn-danger btn-first" onclick="resetMatch"><text class="btn-label">Sí, empezar</text></div>
+      <div id="m-reset-no" class="btn" onclick="cancelReset"><text class="btn-label">Cancelar</text></div>
     </div>
   </div>
 </template>
@@ -128,6 +146,7 @@ function pointOf(evt, list) {
 export default {
   private: {
     menu: false,
+    confirm: false,
     ask: true,
     firstUs: true,
     cueSrc: '',
@@ -201,7 +220,8 @@ export default {
   // stray swipe mid-match can't close the scoreboard; Salir in the menu
   // exits instead.
   onBackPress() {
-    if (this.menu) this.menu = false
+    if (this.confirm) this.confirm = false
+    else if (this.menu) this.menu = false
     return true
   },
 
@@ -313,6 +333,7 @@ export default {
 
   openMenu() {
     touch = null
+    this.confirm = false
     this.menu = true
   },
 
@@ -320,10 +341,19 @@ export default {
     this.menu = false
   },
 
+  askReset() {
+    this.confirm = true
+  },
+
+  cancelReset() {
+    this.confirm = false
+  },
+
   resetMatch() {
     match = newMatch(match.golden)
     this.save()
     this.render()
+    this.confirm = false
     this.menu = false
   },
 
@@ -759,6 +789,11 @@ export default {
 }
 
 /* --- menu --- */
+/* One rhythm: rows and buttons are 184x48 with 6px between them, 14px
+   between the toggles and the buttons, and 24px under the close button.
+   Colour only where it means something: the team colours for who served
+   first (knob right for us, left for them), light grey for a toggle that's
+   on, amber for New match, red for the confirm step. */
 .menu {
   width: 212px;
   height: 520px;
@@ -766,44 +801,109 @@ export default {
   align-items: center;
   justify-content: center;
 }
-.menu-title {
-  height: 26px;
-  line-height: 26px;
-  font-size: 20px;
-  color: #ffffff;
-  margin-bottom: 10px;
-}
-.btn {
-  width: 184px;
-  height: 50px;
-  margin-top: 7px;
-  border-radius: 16px;
-  flex-direction: row;
+.close {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 18px;
+  border-radius: 18px;
   justify-content: center;
   align-items: center;
-  background-color: #262626;
+  background-color: #1c1c1e;
 }
-.btn-ball {
-  width: 12px;
-  height: 12px;
-  margin-right: 8px;
-  border-width: 1px;
-  border-color: #d9f212;
-  border-radius: 6px;
-  background-color: #d9f212;
-}
-.btn-danger {
-  background-color: #4a1a16;
-}
-.btn-primary {
-  background-color: #ff9f0a;
-}
-.btn-label {
-  font-size: 17px;
+.close-label {
+  font-size: 24px;
   color: #ffffff;
   text-align: center;
 }
-.btn-label-dark {
-  color: #000000;
+.row {
+  width: 184px;
+  height: 48px;
+  margin-top: 6px;
+  padding-left: 16px;
+  padding-right: 10px;
+  border-radius: 16px;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #1c1c1e;
+}
+.row-label {
+  font-size: 15px;
+  color: #ffffff;
+}
+.row-label-us {
+  color: #64d2ff;
+}
+.row-label-them {
+  color: #ff9f0a;
+}
+.tg {
+  width: 42px;
+  height: 26px;
+  padding-left: 3px;
+  padding-right: 3px;
+  border-radius: 13px;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  background-color: #3a3a3c;
+}
+.tg-on {
+  justify-content: flex-end;
+  background-color: #c7c7cc;
+}
+.tg-us {
+  justify-content: flex-end;
+  background-color: #64d2ff;
+}
+.tg-them {
+  background-color: #ff9f0a;
+}
+.knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background-color: #8e8e93;
+}
+.knob-on {
+  background-color: #000000;
+}
+.btn {
+  width: 184px;
+  height: 48px;
+  margin-top: 6px;
+  border-radius: 24px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  background-color: #2c2c2e;
+}
+.btn-first {
+  margin-top: 14px;
+}
+.btn-new {
+  background-color: #3a2a00;
+}
+.btn-danger {
+  background-color: #ff453a;
+}
+.btn-label {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+  text-align: center;
+}
+.btn-label-new {
+  color: #ffd60a;
+}
+.confirm-title {
+  font-size: 17px;
+  font-weight: bold;
+  color: #ffffff;
+}
+.confirm-hint {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #8e8e93;
 }
 </style>

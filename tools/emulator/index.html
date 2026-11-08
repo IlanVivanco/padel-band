@@ -78,10 +78,16 @@
 
   /* menu */
   .menu { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .menu h2 { margin: 0 0 10px; height: 26px; line-height: 26px; font-size: 20px; font-weight: 400; color: #fff; }
-  .btn { width: 184px; height: 50px; margin-top: 7px; border-radius: 16px; background: #262626; color: #fff; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-  .btn.danger { background: #4a1a16; } .btn.primary { background: var(--them); color: #000; }
-  .btn .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--cue); }
+  .menu .close { width: 36px; height: 36px; margin-bottom: 18px; border-radius: 18px; background: #1c1c1e; color: #fff; font-size: 24px; display: flex; align-items: center; justify-content: center; }
+  .menu .row { width: 184px; height: 48px; margin-top: 6px; padding: 0 10px 0 16px; box-sizing: border-box; border-radius: 16px; background: #1c1c1e; color: #fff; font-size: 15px; display: flex; align-items: center; justify-content: space-between; }
+  .tg { width: 42px; height: 26px; padding: 0 3px; box-sizing: border-box; border-radius: 13px; background: #3a3a3c; display: flex; align-items: center; justify-content: flex-start; }
+  .tg i { width: 20px; height: 20px; border-radius: 10px; background: #8e8e93; }
+  .tg.on { justify-content: flex-end; background: #c7c7cc; } .tg.on i, .tg.us i, .tg.them i { background: #000; }
+  .tg.us { justify-content: flex-end; background: var(--us); } .tg.them { background: var(--them); }
+  .btn { width: 184px; height: 48px; margin-top: 6px; border-radius: 24px; background: #2c2c2e; color: #fff; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .btn.first { margin-top: 14px; }
+  .btn.new { background: #3a2a00; color: #ffd60a; } .btn.danger { background: #ff453a; } .btn.primary { background: var(--them); color: #000; }
+  .menu b { font-size: 17px; color: #fff; } .menu .hint { margin-top: 4px; font-size: 13px; color: #8e8e93; }
   .closed { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #777; font-size: 14px; }
   .closed .btn { width: 150px; }
 
@@ -180,6 +186,7 @@ const other = (s) => (s === US ? THEM : US)
 let match = newMatch()
 let view = 'start' // start | score | menu | closed
 let keepOn = true
+let confirmReset = false
 let flash = '' // 'u+', 't-'
 let flashTimer = null
 let cueColour = 'grey'
@@ -239,15 +246,22 @@ function renderStart() {
 }
 
 function renderMenu() {
-  const first = match.first === THEM ? 'Ellos' : 'Nosotros'
+  const tg = (on) => `<span class="tg${on ? ' on' : ''}"><i></i></span>`
+  if (confirmReset) {
+    return `<div class="menu">
+    <b>¿Nuevo partido?</b><div class="hint">Se borra el actual</div>
+    <div class="btn danger first" data-act="reset">Sí, empezar</div>
+    <div class="btn" data-act="cancel">Cancelar</div>
+  </div>`
+  }
+  const us = match.first !== THEM
   return `<div class="menu">
-    <h2>Menú</h2>
-    <div class="btn danger" data-act="reset">Reiniciar partido</div>
-    <div class="btn" data-act="first"><span class="dot"></span>Saque: ${first}</div>
-    <div class="btn" data-act="golden">Punto de oro: ${match.golden ? 'Sí' : 'No'}</div>
-    <div class="btn" data-act="screen">Pantalla fija: ${keepOn ? 'Sí' : 'No'}</div>
+    <div class="close" data-act="back">×</div>
+    <div class="row" data-act="first"><span style="color:var(${us ? '--us' : '--them'})">${us ? 'Sacamos' : 'Sacan'}</span><span class="tg ${us ? 'us' : 'them'}"><i></i></span></div>
+    <div class="row" data-act="golden">Punto de oro${tg(match.golden)}</div>
+    <div class="row" data-act="screen">Pantalla fija${tg(keepOn)}</div>
+    <div class="btn new first" data-act="ask-reset">Nuevo partido</div>
     <div class="btn" data-act="exit">Salir</div>
-    <div class="btn primary" data-act="back">Volver</div>
   </div>`
 }
 
@@ -349,6 +363,7 @@ screenEl.addEventListener('pointerdown', (e) => {
       if (Math.abs(touch.lastX - touch.x) > TAP_SLOP || Math.abs(touch.lastY - touch.y) > TAP_SLOP) return
       touch.long = true
       buzz(25)
+      confirmReset = false
       view = 'menu'
       render()
     }, LONG_MS)
@@ -401,7 +416,9 @@ function start(first) {
 }
 
 function menuAction(a) {
-  if (a === 'reset') { match = newMatch(match.golden); view = 'start' }
+  if (a === 'ask-reset') confirmReset = true
+  else if (a === 'cancel') confirmReset = false
+  else if (a === 'reset') { match = newMatch(match.golden); confirmReset = false; view = 'start' }
   else if (a === 'first') match = { ...match, first: other(match.first || US) }
   else if (a === 'golden') match = { ...match, golden: !match.golden }
   else if (a === 'screen') keepOn = !keepOn
@@ -412,7 +429,7 @@ function menuAction(a) {
 }
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'm' || e.key === 'M') { if (view === 'score') view = 'menu'; else if (view === 'menu') view = 'score'; render(); return }
+  if (e.key === 'm' || e.key === 'M') { if (view === 'score') { confirmReset = false; view = 'menu' } else if (view === 'menu') view = 'score'; render(); return }
   if (view !== 'score') return
   const side = e.key === 'ArrowUp' ? THEM : e.key === 'ArrowDown' ? US : null
   if (!side) return

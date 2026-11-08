@@ -1,0 +1,83 @@
+# Publishes a GitHub release on every push to main whose versionName
+# (src/manifest.json) doesn't have a release yet. Merges that don't bump the
+# version build and test, but publish nothing.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Read version
+        id: version
+        run: |
+          v=$(node -p "require('./src/manifest.json').versionName")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+
+      - name: Check for an existing release
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "Release ${{ steps.version.outputs.tag }} already exists; nothing to publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: npm ci
+
+      - run: npm test
+
+      # The band only runs bytecode, so this must be the JSC build.
+      - run: npm run build
+
+      - name: Write release notes
+        if: steps.exists.outputs.skip == 'false'
+        run: |
+          v='${{ steps.version.outputs.version }}'
+          # The CHANGELOG section for this version, without its heading.
+          awk -v v="$v" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "See the [changelog](CHANGELOG.md)." > notes.md
+          fi
+          rpk=$(ls dist/*.rpk)
+          {
+            echo
+            echo '### Install'
+            echo "Download \`$(basename "$rpk")\` and install it with [MiBand Hack](https://miband.trinh.uk). It installs over earlier versions. See the [README](https://github.com/${{ github.repository }}#install-with-miband-hack) for step-by-step instructions."
+          } >> notes.md
+
+      - name: Publish release
+        if: steps.exists.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create '${{ steps.version.outputs.tag }}' dist/*.rpk \
+            --target '${{ github.sha }}' \
+            --title '${{ steps.version.outputs.tag }}' \
+            --notes-file notes.md
