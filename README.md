@@ -66,13 +66,14 @@ last one played, it's fully undone, even if it closed a game or a set.
 
 **Menu:**
 
-- *Reiniciar partido*: start a new match. It asks who serves first again.
-- *Saque: Nosotros / Ellos*: change which team served first, if it was
-  set wrong. The serve indicator updates for the whole match.
-- *Punto de oro: Sí / No*: turn the golden point on or off.
-- *Pantalla fija: Sí / No*: keep the screen on while the app is open.
+- *Sacamos / Sacan*: a toggle for which team served first, if it was set
+  wrong. The serve indicator updates for the whole match.
+- *Punto de oro*: turn the golden point on or off.
+- *Pantalla fija*: keep the screen on while the app is open.
+- *Nuevo partido*: start a new match. It asks to confirm first, then who
+  serves.
 - *Salir*: exit the app.
-- *Volver*: go back to the score.
+- **×** on top goes back to the score.
 
 > A right swipe, the band's usual "back" gesture, **does nothing** here, so a
 > stray swipe mid-match can't close the scoreboard. Use **Salir** in the menu
@@ -101,6 +102,11 @@ Get the latest `.rpk` from
 [changelog](CHANGELOG.md) for what changed in each version. Release builds
 are debug-signed and compiled to JSC bytecode, which is what the band needs to
 sideload them.
+
+Releases are published automatically: when a merge to `main` carries a
+`versionName` (in `src/manifest.json`) that has no release yet, the
+[Release workflow](.github/workflows/release.yml) builds the `.rpk` and
+publishes it, with that version's section of the changelog as the notes.
 
 ## Install with MiBand Hack
 

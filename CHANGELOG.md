@@ -8,6 +8,23 @@ Versions marked *(released)* have a `.rpk` on
 [GitHub Releases](https://github.com/IlanVivanco/padel-band/releases). The
 others were test builds on the band.
 
+## [0.5.0] — 2026-11-08
+
+### Added
+- Releases are published automatically: a merge to `main` with a new
+  `versionName` builds the `.rpk` and publishes it on GitHub Releases, with
+  this changelog's section as the notes.
+
+### Changed
+- **Redesigned menu.** The three settings (who served first, golden point,
+  keep screen on) are toggles, and *Nuevo partido* and *Salir* are grouped
+  below them as buttons. A **×** on top replaces *Volver*. One spacing rhythm
+  throughout, and colour only where it means something: *Sacamos* / *Sacan*
+  in the team's blue or orange, light grey for a toggle that's on, amber for
+  *Nuevo partido*.
+- *Reiniciar partido* is now *Nuevo partido* and asks to confirm, so a stray
+  tap can't wipe a match.
+
 ## [0.4.0] — 2026-11-08
 
 ### Added
