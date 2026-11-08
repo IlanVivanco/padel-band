@@ -108,7 +108,7 @@
 
 <div class="device">
   <div class="bezel"><div class="fit" id="fit"><div class="screen" id="screen"></div></div></div>
-  <div class="hint">Tocá o deslizá → para sumar · deslizá ← para restar · mantené presionado para el menú</div>
+  <div class="hint">Tocá para sumar · deslizá ← para restar · mantené presionado para el menú</div>
 </div>
 
 <div class="panel">
@@ -386,8 +386,9 @@ screenEl.addEventListener('pointerup', (e) => {
   const side = t.y < 200 ? THEM : t.y > 320 ? US : null
   if (!side) return
   if (isTap) { add(side); return }
-  if (Math.abs(dx) < MIN_DX || Math.abs(dx) < Math.abs(dy) * 1.5) return
-  if (dx > 0) add(side); else remove(side)
+  // swipe left takes a point away; a right swipe does nothing
+  if (dx > -MIN_DX || Math.abs(dx) < Math.abs(dy) * 1.5) return
+  remove(side)
 })
 
 screenEl.addEventListener('pointercancel', () => { clearTimeout(longTimer); touch = null })

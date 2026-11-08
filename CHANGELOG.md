@@ -26,6 +26,9 @@ others were test builds on the band.
   position on the tile with 1-3 sets, and the menu option.
 
 ### Changed
+- **Swipe right no longer adds a point:** tap adds, swipe left subtracts.
+  A right swipe (the band's "back" gesture) now does nothing, and still
+  doesn't close the app.
 - The `TIE-BREAK` / `PUNTO DE ORO` pill moved just below the scoreboard, so
   the edge between the scoreboard and our half stays visible.
 - Menu buttons are slightly shorter, to fit the new option.

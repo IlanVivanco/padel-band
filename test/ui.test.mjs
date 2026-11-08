@@ -226,7 +226,7 @@ test('labels and texts for each state', async () => {
   assert.deepEqual(await t('08-win-them', ['pts-them', 'label-them']), { 'pts-them': 'WIN', 'label-them': 'GANAN' })
 })
 
-test('tap and swipes score on the right side', async () => {
+test('tap adds, swipe left subtracts, swipe right does nothing', async () => {
   const page = await open('')
   const pts = () => page.evaluate(() => [window.harness.text('pts-them'), window.harness.text('pts-us')])
   const tap = async (x, y) => {
@@ -243,7 +243,9 @@ test('tap and swipes score on the right side', async () => {
   }
   await tap(106, 420)
   assert.deepEqual(await pts(), ['0', '15'])
-  await swipe(40, 170, 100)
+  await tap(106, 100)
+  assert.deepEqual(await pts(), ['15', '15'])
+  await swipe(40, 170, 100) // right: no change
   assert.deepEqual(await pts(), ['15', '15'])
   await swipe(170, 40, 420)
   assert.deepEqual(await pts(), ['15', '0'])

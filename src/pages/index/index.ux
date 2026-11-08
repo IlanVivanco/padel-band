@@ -2,8 +2,8 @@
   <div class="page">
     <!-- Score view. Top half is them (orange), bottom half is us (blue); the
          same colours run through the scoreboard, so no labels are needed.
-         Tap or swipe right on a half: point for that side. Swipe left: take
-         one away. Long-press: menu. -->
+         Tap a half: point for that side. Swipe left: take one away.
+         Long-press: menu. -->
     <!-- Who serves first: shown for a new match. Tap a half to choose. -->
     <div class="score" if="{{ !menu && ask }}">
       <div id="ask-them" class="half half-them-hi" onclick="chooseThem">
@@ -197,9 +197,9 @@ export default {
     this.setScreen(false)
   },
 
-  // The system treats a right swipe as "back". While the score view is up,
-  // a right swipe is a point, so it must not close the app; Salir in the
-  // menu exits instead.
+  // The system treats a right swipe as "back". It does nothing here, so a
+  // stray swipe mid-match can't close the scoreboard; Salir in the menu
+  // exits instead.
   onBackPress() {
     if (this.menu) this.menu = false
     return true
@@ -234,10 +234,9 @@ export default {
       this.add(side)
       return
     }
-    // Horizontal swipe: right adds, left subtracts.
-    if (Math.abs(dx) < MIN_DX || Math.abs(dx) < Math.abs(dy) * 1.5) return
-    if (dx > 0) this.add(side)
-    else this.remove(side)
+    // Swipe left: take a point away. A right swipe does nothing.
+    if (dx > -MIN_DX || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    this.remove(side)
   },
 
   // A cancelled touch (e.g. the system took the gesture) never scores.

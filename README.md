@@ -3,8 +3,8 @@
 # Pádel — padel score counter for Xiaomi Smart Band 10
 
 A padel scoreboard that runs on the **Xiaomi Smart Band 10**, built as a Xiaomi
-Vela JS quick app (`.rpk`). Tap to score, swipe to fix mistakes, and see every set at
-a glance without leaving the court.
+Vela JS quick app (`.rpk`). Tap to score, swipe left to fix mistakes, and see
+every set at a glance without leaving the court.
 
 ![Pádel: mid-match, our advantage, tiebreak and match won](docs/preview.png)
 
@@ -57,7 +57,7 @@ screen). The app's on-screen labels are in Spanish.</sub>
 
 | Gesture | On the top half (them) | On the bottom half (us) |
 | --- | --- | --- |
-| **Tap** or **swipe right** | +1 point to them | +1 point to us |
+| **Tap** | +1 point to them | +1 point to us |
 | **Swipe left** | −1 point to them | −1 point to us |
 | **Long-press** (anywhere) | Opens the menu | Opens the menu |
 
@@ -74,8 +74,9 @@ last one played, it's fully undone, even if it closed a game or a set.
 - *Salir*: exit the app.
 - *Volver*: go back to the score.
 
-> A right swipe adds a point here, so it **doesn't close the app** as it does
-> elsewhere on the band. Use **Salir** in the menu to exit.
+> A right swipe, the band's usual "back" gesture, **does nothing** here, so a
+> stray swipe mid-match can't close the scoreboard. Use **Salir** in the menu
+> to exit.
 
 ## Screens
 
