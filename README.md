@@ -3,8 +3,8 @@
 # Pádel — padel score counter for Xiaomi Smart Band 10
 
 A padel scoreboard that runs on the **Xiaomi Smart Band 10**, built as a Xiaomi
-Vela JS quick app (`.rpk`). Tap to score, swipe to fix mistakes, and see every set at
-a glance without leaving the court.
+Vela JS quick app (`.rpk`). Tap to score, swipe left to fix mistakes, and see
+every set at a glance without leaving the court.
 
 ![Pádel: mid-match, our advantage, tiebreak and match won](docs/preview.png)
 
@@ -29,9 +29,20 @@ screen). The app's on-screen labels are in Spanish.</sub>
   - *Advantage:* the leading half lights up and shows a bold **AD** with
     *VENTAJA*, while the rival's 40 dims.
   - *Tiebreak / golden point:* a white pill (`TIE-BREAK`, `PUNTO DE ORO`)
-    appears on the edge of the scoreboard without moving anything else.
+    appears just below the scoreboard without moving anything else.
   - *Match over:* the winner's half lights up with **WIN** in its color and *GANAMOS*
     or *GANAN*, and the other half shows a dimmed bar.
+- **Serve indicator.** A grey arc on one corner of the current-set tile
+  shows who serves next and from which side. The tile's corners are the
+  court seen from your side: top corners are the opponents, bottom corners
+  are your team. So the marked corner is where the server stands, and you
+  can point at it: "you serve from there now". Their right is the screen's
+  left, because they face you.
+- **Who serves first.** Each new match asks *¿Quién saca?*: tap the team
+  that serves first. Everything else follows from the rules: teams
+  alternate games (across sets too), each game starts from the right, and
+  the side switches every point. In a tiebreak the team whose turn it is
+  serves one point, then two each.
 - **Full padel rules.** Points go 0 / 15 / 30 / 40 with deuce and advantage, or
   an optional **golden point** (*punto de oro*). Sets go to 6, won by 2, with a
   **tiebreak** to 7 (won by 2) at 6-6. Matches are best of 3.
@@ -46,7 +57,7 @@ screen). The app's on-screen labels are in Spanish.</sub>
 
 | Gesture | On the top half (them) | On the bottom half (us) |
 | --- | --- | --- |
-| **Tap** or **swipe right** | +1 point to them | +1 point to us |
+| **Tap** | +1 point to them | +1 point to us |
 | **Swipe left** | −1 point to them | −1 point to us |
 | **Long-press** (anywhere) | Opens the menu | Opens the menu |
 
@@ -55,20 +66,23 @@ last one played, it's fully undone, even if it closed a game or a set.
 
 **Menu:**
 
-- *Reiniciar partido*: start a new match.
+- *Reiniciar partido*: start a new match. It asks who serves first again.
+- *Saque: Nosotros / Ellos*: change which team served first, if it was
+  set wrong. The serve indicator updates for the whole match.
 - *Punto de oro: Sí / No*: turn the golden point on or off.
 - *Pantalla fija: Sí / No*: keep the screen on while the app is open.
 - *Salir*: exit the app.
 - *Volver*: go back to the score.
 
-> A right swipe adds a point here, so it **doesn't close the app** as it does
-> elsewhere on the band. Use **Salir** in the menu to exit.
+> A right swipe, the band's usual "back" gesture, **does nothing** here, so a
+> stray swipe mid-match can't close the scoreboard. Use **Salir** in the menu
+> to exit.
 
 ## Screens
 
-| Start | Mid-match | Our advantage |
+| Who serves? | Mid-match | Our advantage |
 | :---: | :---: | :---: |
-| <img src="docs/screens/01-start.png" width="150"> | <img src="docs/screens/02-normal.png" width="150"> | <img src="docs/screens/03-ad-us.png" width="150"> |
+| <img src="docs/screens/00-ask.png" width="150"> | <img src="docs/screens/02-normal.png" width="150"> | <img src="docs/screens/03-ad-us.png" width="150"> |
 | **Their advantage** | **Golden point** | **Tiebreak** |
 | <img src="docs/screens/04-ad-them.png" width="150"> | <img src="docs/screens/05-golden.png" width="150"> | <img src="docs/screens/06-tiebreak.png" width="150"> |
 | **We won** | **They won** | **Menu** (long-press) |
@@ -76,7 +90,9 @@ last one played, it's fully undone, even if it closed a game or a set.
 
 How to read the scoreboard in the middle: each column is a set, with their
 games (orange) on top and ours (blue) below. In *Mid-match*, we won the first
-set 6-4 (bold and underlined) and trail 2-3 in the second (grey tile).
+set 6-4 (bold and underlined) and trail 2-3 in the second (grey tile). The
+grey arc on the tile's top-right corner says they serve next, from their
+left.
 
 ## Download
 
@@ -180,8 +196,17 @@ You need Node.js (tested with v22).
 npm install
 npm test          # scoring logic unit tests (plain Node)
 npm run test:ui   # layout + gesture tests on the compiled page (needs Playwright + Chromium)
+npm run emulator  # dev emulator at http://localhost:5173/tools/emulator/
 npm run build     # -> dist/com.ilanvivanco.padelband.debug.<version>.rpk
 ```
+
+`npm run emulator` serves an interactive emulator of the band screen in your
+browser. It runs on the app's own scoring and serve logic
+(`src/common/padel.js`) and supports taps, swipes, long-press, the menu and
+the who-serves screen. A side panel shows who serves and from where, jumps to
+states (deuce, tiebreak, three sets…) and lets you try the serve cue's place,
+stroke, length and color. It's a quick way to test rules and design ideas;
+the UI tests remain the reference for exact layout.
 
 `npm run test:ui` builds the plain-JS bundle and drives it in headless
 Chromium through `test/harness/` (adapted from Calc+). It checks that every
@@ -209,23 +234,30 @@ src/
   manifest.json          app id, version, features (storage, vibrator, brightness, app)
   app.ux                 app entry
   pages/index/index.ux   screen layout, gestures, menu
-  common/padel.js        pure scoring logic (no system modules)
+  common/padel.js        pure scoring and serve logic (no system modules)
+  common/serve-*.png     serve-cue arcs, one per tile corner (12 × 12)
   common/logo.png        app icon (120 × 120)
 test/padel.test.mjs      scoring tests (node --test)
 test/ui.test.mjs         layout and gesture tests on the compiled page
 test/harness/            minimal Vela runtime for Chromium (from Calc+)
+tools/emulator/          dev emulator (npm run emulator)
+tools/serve.mjs          static server for the emulator
 tools/docs_images.py     builds the README images from the test screenshots
 docs/                    README images and app icon
 CHANGELOG.md             version history
 ```
 
-The match is stored as the sequence of point winners (`"uutu…"`), and the score
-is always derived by replaying that sequence. Undo and subtract are just edits
-to the sequence, so the score can't drift out of sync.
+The match is stored as the sequence of point winners (`"uutu…"`) plus the team
+that served first, and the score and serve are always derived by replaying
+that sequence. Undo and subtract are just edits to the sequence, so neither
+the score nor the serve can drift out of sync.
+
+Vela supports neither per-side borders nor per-corner radii, so the serve arc
+is a small image placed over the current-set tile's known position.
 
 ## Roadmap ideas
 
-- Serve indicator
+- Which player of the team serves (partners alternate)
 - Configurable match format (single set, super tiebreak instead of a third set)
 - Match summary and history
 

@@ -17,7 +17,7 @@ SCALE = 2
 W, H = 212 * SCALE, 520 * SCALE
 BG = (24, 24, 24)
 
-STATES = ['01-start', '02-normal', '03-ad-us', '04-ad-them', '05-golden',
+STATES = ['00-ask', '01-start', '02-normal', '03-ad-us', '04-ad-them', '05-golden',
           '06-tiebreak', '07-win-us', '08-win-them', '09-menu']
 HERO = ['02-normal', '03-ad-us', '06-tiebreak', '07-win-us']
 

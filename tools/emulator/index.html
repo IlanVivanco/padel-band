@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pádel — dev emulator (Smart Band 10)</title>
+<style>
+  :root {
+    --them: #ff9f0a; --them-dim: #734804; --them-set-dim: #5c4520; --them-tint: #3a2405; --them-flash: #5c3a08;
+    --us: #64d2ff;   --us-dim: #2d5f73;   --us-set-dim: #245066;   --us-tint: #062b40;   --us-flash: #0a4766;
+    --board: #141414; --tile: #2e2e2e; --lost: #444444;
+    --cue: #d9f212;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: #1b1b1d; color: #e8e8ea; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { min-height: 100vh; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px; padding: 24px 16px 40px; }
+
+  /* --- band --- */
+  .device { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .bezel { padding: 7px; border-radius: 999px; background: linear-gradient(160deg, #3a3a3e, #1f1f22); box-shadow: 0 10px 40px rgba(0,0,0,.5), inset 0 0 0 1px #4a4a50; }
+  .fit { position: relative; overflow: hidden; border-radius: 999px; }
+  .screen {
+    position: absolute; left: 0; top: 0; width: 212px; height: 520px; transform-origin: 0 0;
+    background: #000; border-radius: 106px; overflow: hidden; user-select: none; -webkit-user-select: none;
+    touch-action: none; cursor: pointer;
+  }
+  .hint { font-size: 12px; color: #8a8a90; text-align: center; max-width: 300px; line-height: 1.5; }
+
+  /* screen layout: half 200 | board 120 | half 200 */
+  .abs { position: absolute; }
+  .half { position: absolute; left: 0; width: 212px; height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: background-color .12s; }
+  .half.them { top: 0; } .half.us { top: 320px; }
+  .them-hi { background: var(--them-tint); } .us-hi { background: var(--us-tint); }
+  .them-flash { background: var(--them-flash); } .us-flash { background: var(--us-flash); } .sub-flash { background: #262626; }
+  .label { width: 212px; height: 18px; line-height: 18px; font-size: 13px; font-weight: 700; text-align: center; letter-spacing: .02em; }
+  .label.them { color: var(--them); } .label.us { color: var(--us); }
+  .points { width: 212px; height: 112px; line-height: 112px; font-size: 88px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+  .pts-them { color: var(--them); } .pts-us { color: var(--us); }
+  .pts-them-dim { color: var(--them-dim); } .pts-us-dim { color: var(--us-dim); }
+  .lost { width: 212px; height: 112px; display: flex; align-items: center; justify-content: center; }
+  .lost i { display: block; width: 44px; height: 10px; border-radius: 5px; background: var(--lost); }
+
+  .board { position: absolute; left: 0; top: 200px; width: 212px; height: 120px; background: var(--board); display: flex; justify-content: center; align-items: center; }
+  .col { height: 104px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .col.cur { background: var(--tile); }
+  .num { height: 42px; line-height: 42px; font-size: 38px; text-align: center; width: 100%; font-variant-numeric: tabular-nums; }
+  .num.won { font-weight: 700; }
+  .n-them { color: var(--them); } .n-us { color: var(--us); }
+  .n-them-dim { color: var(--them-set-dim); } .n-us-dim { color: var(--us-set-dim); }
+  .slot { height: 5px; width: 100%; display: flex; justify-content: center; align-items: center; }
+  .slot i { display: block; width: 20px; height: 3px; border-radius: 1px; }
+
+  /* serve cue: a corner bracket of the board = the server's quadrant */
+  .bracket { position: absolute; width: 12px; height: 12px; border-color: var(--cue); border-style: solid; border-width: 0; transition: border-color .2s; }
+  .bracket.TL { left: 8px; top: 208px; border-left-width: 3px; border-top-width: 3px; }
+  .bracket.TR { right: 8px; top: 208px; border-right-width: 3px; border-top-width: 3px; }
+  .bracket.BL { left: 8px; top: 300px; border-left-width: 3px; border-bottom-width: 3px; }
+  .bracket.BR { right: 8px; top: 300px; border-right-width: 3px; border-bottom-width: 3px; }
+
+  /* serve cue on the current-set tile: a rounded corner that follows the tile */
+  .col { position: relative; }
+  .tcorner { position: absolute; width: 18px; height: 18px; border-style: solid; border-width: 0; transition: border-color .2s; pointer-events: none; }
+  .tcorner.TL { left: 0; top: 0; border-left-width: 3px; border-top-width: 3px; border-top-left-radius: 12px; }
+  .tcorner.TR { right: 0; top: 0; border-right-width: 3px; border-top-width: 3px; border-top-right-radius: 12px; }
+  .tcorner.BL { left: 0; bottom: 0; border-left-width: 3px; border-bottom-width: 3px; border-bottom-left-radius: 12px; }
+  .tcorner.BR { right: 0; bottom: 0; border-right-width: 3px; border-bottom-width: 3px; border-bottom-right-radius: 12px; }
+
+  .pill-wrap { position: absolute; left: 0; top: 326px; width: 212px; height: 20px; display: flex; justify-content: center; pointer-events: none; }
+  .pill { height: 20px; line-height: 20px; padding: 0 10px; border-radius: 10px; background: #fff; color: #000; font-size: 12px; font-weight: 700; }
+
+  /* start screen */
+  .ask { font-size: 26px; font-weight: 700; margin-top: 10px; }
+  .ball { width: 28px; height: 28px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #f2ff6a, #d9f212 55%, #b5c90c); position: relative; }
+  .ball::after { content: ""; position: absolute; inset: 3px 9px 3px -5px; border-radius: 50%; border: 2px solid rgba(80,90,0,.55); border-left-color: transparent; border-top-color: transparent; border-bottom-color: transparent; }
+  .board-q { flex-direction: column; }
+  .board-q b { font-size: 20px; color: #fff; }
+  .board-q span { font-size: 13px; color: #8a8a8a; margin-top: 6px; }
+
+  /* menu */
+  .menu { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .menu h2 { margin: 0 0 10px; height: 26px; line-height: 26px; font-size: 20px; font-weight: 400; color: #fff; }
+  .btn { width: 184px; height: 50px; margin-top: 7px; border-radius: 16px; background: #262626; color: #fff; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn.danger { background: #4a1a16; } .btn.primary { background: var(--them); color: #000; }
+  .btn .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--cue); }
+  .closed { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #777; font-size: 14px; }
+  .closed .btn { width: 150px; }
+
+  /* --- panel --- */
+  .panel { width: 330px; max-width: 100%; display: flex; flex-direction: column; gap: 18px; }
+  .panel h1 { font-size: 18px; margin: 0; }
+  .panel p { margin: 0; font-size: 13px; color: #a0a0a8; line-height: 1.5; }
+  .card { background: #242428; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .card h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #8a8a90; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid #3a3a40; background: #1b1b1d; color: #e8e8ea; border-radius: 999px; padding: 7px 12px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .chip[aria-pressed="true"] { border-color: #e8e8ea; background: #34343a; }
+  .chip .sw { width: 12px; height: 12px; border-radius: 3px; }
+  .status { font-size: 14px; line-height: 1.5; }
+  .status b { color: #fff; }
+  .muted { color: #8a8a90; font-size: 12px; }
+  table { border-collapse: collapse; font-size: 13px; }
+  td { padding: 3px 10px 3px 0; color: #c8c8ce; vertical-align: top; }
+  td:first-child { color: #fff; white-space: nowrap; }
+  kbd { font-family: ui-monospace, monospace; font-size: 11px; background: #1b1b1d; border: 1px solid #3a3a40; border-radius: 4px; padding: 1px 5px; }
+</style>
+</head>
+<body>
+
+<div class="device">
+  <div class="bezel"><div class="fit" id="fit"><div class="screen" id="screen"></div></div></div>
+  <div class="hint">Tocá para sumar · deslizá ← para restar · mantené presionado para el menú</div>
+</div>
+
+<div class="panel">
+  <div>
+    <h1>Pádel · emulador</h1>
+    <p>Emulador de desarrollo de la app (212 × 520 px). Usa la misma lógica de puntuación y saque que la app (<code>src/common/padel.js</code>). Es una simulación web: la tipografía y el render de la banda pueden variar un poco; para el layout exacto están los tests de UI.</p>
+  </div>
+
+  <div class="card">
+    <h3>Saque ahora</h3>
+    <div class="status" id="status"></div>
+    <div class="muted">La esquina marcada es el cuadrante del que saca, con la pantalla vista como la cancha desde nuestro lado: ellos arriba, nosotros abajo.</div>
+  </div>
+
+  <div class="card">
+    <h3>Dónde va la escuadra</h3>
+    <div class="row" id="places"></div>
+  </div>
+
+  <div class="card">
+    <h3>Grosor</h3>
+    <div class="row" id="widths"></div>
+    <h3>Largo <span style="text-transform:none;letter-spacing:0">(12 px = solo la curva)</span></h3>
+    <div class="row" id="lens"></div>
+  </div>
+
+  <div class="card">
+    <h3>Color de la escuadra</h3>
+    <div class="row" id="colors"></div>
+  </div>
+
+  <div class="card">
+    <h3>Saltar a un estado</h3>
+    <div class="row" id="presets"></div>
+    <div class="muted">Cada estado se arma jugando los puntos desde el inicio, así que el saque queda calculado como en un partido real.</div>
+  </div>
+
+  <div class="card">
+    <h3>Reglas de saque usadas</h3>
+    <table>
+      <tr><td>Juegos</td><td>Los equipos se alternan un juego cada uno, también entre sets.</td></tr>
+      <tr><td>Lado</td><td>El primer punto de cada juego desde la derecha, y después se alterna.</td></tr>
+      <tr><td>Tie-break</td><td>Saca 1 punto el equipo al que le toca y después 2 cada uno, alternando lados.</td></tr>
+      <tr><td>Nuevo set</td><td>Saca el equipo que recibió el último juego (o el primer punto del tie-break).</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Teclado</h3>
+    <table>
+      <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Punto para ellos / nosotros</td></tr>
+      <tr><td><kbd>Shift</kbd> + flecha</td><td>Restar</td></tr>
+      <tr><td><kbd>M</kbd></td><td>Menú</td></tr>
+    </table>
+  </div>
+</div>
+
+<script type="module">
+// Dev emulator for the band app. The scoring and serve rules come from the
+// app's own src/common/padel.js, so this page always matches the app. Run it
+// with `npm run emulator` (ES modules don't load from file://).
+import {
+  US, THEM, newMatch, score, addPoint, removePoint, pointLabels, serve
+} from '../../src/common/padel.js'
+
+const other = (s) => (s === US ? THEM : US)
+
+// ---------------------------------------------------------------- state
+let match = newMatch()
+let view = 'start' // start | score | menu | closed
+let keepOn = true
+let flash = '' // 'u+', 't-'
+let flashTimer = null
+let cueColour = 'grey'
+let cuePlace = 'tile' // tile | board
+let cueWidth = 2 // px
+let cueLen = 12 // px (12 = just the tile's rounded corner)
+
+const COLOURS = {
+  lime: { label: 'Lima', value: '#d9f212' },
+  white: { label: 'Blanco', value: '#ffffff' },
+  grey: { label: 'Gris', value: '#8e8e93' },
+  team: { label: 'Color del que saca', value: null },
+}
+
+function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms) } catch (e) {} }
+
+function add(side) {
+  const next = addPoint(match, side)
+  if (next === match) return
+  match = next
+  const s = score(match)
+  buzz(s.points.u === 0 && s.points.t === 0 ? 60 : 15)
+  doFlash(side + '+')
+}
+
+function remove(side) {
+  const next = removePoint(match, side)
+  if (next === match) return
+  match = next
+  buzz(15)
+  doFlash(side + '-')
+}
+
+function doFlash(f) {
+  flash = f
+  render()
+  clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => { flash = ''; render() }, 220)
+}
+
+// ---------------------------------------------------------------- render
+const screenEl = document.getElementById('screen')
+
+function render() {
+  if (view === 'start') screenEl.innerHTML = renderStart()
+  else if (view === 'menu') screenEl.innerHTML = renderMenu()
+  else if (view === 'closed') screenEl.innerHTML = `<div class="closed"><div>Pádel está cerrada</div><div class="btn primary" data-act="open">Abrir Pádel</div></div>`
+  else screenEl.innerHTML = renderScore()
+  renderPanel()
+}
+
+function renderStart() {
+  return `
+    <div class="half them them-hi"><div class="ball"></div><div class="ask" style="color:var(--them)">SACAN</div></div>
+    <div class="board board-q"><b>¿Quién saca?</b><span>Tocá un lado</span></div>
+    <div class="half us us-hi"><div class="ball"></div><div class="ask" style="color:var(--us)">SACAMOS</div></div>`
+}
+
+function renderMenu() {
+  const first = match.first === THEM ? 'Ellos' : 'Nosotros'
+  return `<div class="menu">
+    <h2>Menú</h2>
+    <div class="btn danger" data-act="reset">Reiniciar partido</div>
+    <div class="btn" data-act="first"><span class="dot"></span>Saque: ${first}</div>
+    <div class="btn" data-act="golden">Punto de oro: ${match.golden ? 'Sí' : 'No'}</div>
+    <div class="btn" data-act="screen">Pantalla fija: ${keepOn ? 'Sí' : 'No'}</div>
+    <div class="btn" data-act="exit">Salir</div>
+    <div class="btn primary" data-act="back">Volver</div>
+  </div>`
+}
+
+function renderScore() {
+  const s = score(match)
+  const l = pointLabels(s, match.golden)
+  const w = s.winner
+  const adv = l.u === 'AD' ? US : l.t === 'AD' ? THEM : null
+
+  let tPts = l.t, uPts = l.u, tCls = 'pts-them', uCls = 'pts-us', tLab = '', uLab = '', tHi = false, uHi = false
+  if (w) {
+    tPts = w === THEM ? 'WIN' : null; uPts = w === US ? 'WIN' : null
+    tLab = w === THEM ? 'GANAN' : ''; uLab = w === US ? 'GANAMOS' : ''
+    tHi = w === THEM; uHi = w === US
+  } else if (adv === US) { tCls = 'pts-them-dim'; uLab = 'VENTAJA'; uHi = true }
+  else if (adv === THEM) { uCls = 'pts-us-dim'; tLab = 'VENTAJA'; tHi = true }
+
+  const fs = flash[0], fAdd = flash[1] === '+'
+  const tBg = fs === THEM ? (fAdd ? 'them-flash' : 'sub-flash') : (tHi ? 'them-hi' : '')
+  const uBg = fs === US ? (fAdd ? 'us-flash' : 'sub-flash') : (uHi ? 'us-hi' : '')
+  const big = (txt, cls) => txt === null ? `<div class="lost"><i></i></div>` : `<div class="points ${cls}">${txt}</div>`
+
+  // scoreboard columns
+  const cols = s.setScores.map(([u, t]) => ({ t, u, cur: false, tWon: t > u }))
+  if (!w) cols.push({ t: s.games.t, u: s.games.u, cur: true })
+  const sv = serve(match, s)
+  // With the cue on the board corners, 3 sets need narrower columns to leave the corners clear.
+  const narrow = cuePlace === 'board' && cols.length >= 3
+  const cw = narrow ? 52 : 58
+  const colHtml = cols.map((c) => {
+    const tc = c.cur ? 'n-them' : c.tWon ? 'n-them won' : 'n-them-dim'
+    const uc = c.cur ? 'n-us' : !c.tWon ? 'n-us won' : 'n-us-dim'
+    const tb = !c.cur && c.tWon ? `<i style="background:var(--them)"></i>` : ''
+    const ub = !c.cur && !c.tWon ? `<i style="background:var(--us)"></i>` : ''
+    const tcorner = c.cur && sv && cuePlace === 'tile' ? `<div class="tcorner ${sv.corner}" style="${cueGeom(sv)}"></div>` : ''
+    return `<div class="col ${c.cur ? 'cur' : ''}" style="width:${cw}px;margin:0 ${narrow ? 2 : 3}px">${tcorner}
+      <div class="slot"></div><div class="num ${tc}">${c.t}</div><div class="slot">${tb}</div>
+      <div class="num ${uc}">${c.u}</div><div class="slot">${ub}</div></div>`
+  }).join('')
+
+  let pill = ''
+  if (!w && s.tiebreak) pill = 'TIE-BREAK'
+  else if (!w && match.golden && s.points.u === 3 && s.points.t === 3) pill = 'PUNTO DE ORO'
+
+  const cue = sv && cuePlace === 'board' ? `<div class="bracket ${sv.corner}" style="${cueGeom(sv, true)}"></div>` : ''
+
+  return `
+    <div class="half them ${tBg}"><div class="label them">${tLab}</div>${big(tPts, tCls)}<div class="label"></div></div>
+    <div class="board">${colHtml}</div>
+    <div class="half us ${uBg}"><div class="label"></div>${big(uPts, uCls)}<div class="label us">${uLab}</div></div>
+    ${cue}
+    ${pill ? `<div class="pill-wrap"><div class="pill">${pill}</div></div>` : ''}`
+}
+
+// Size, stroke and colour of the corner, from the panel settings.
+function cueGeom(sv, square) {
+  const w = cueWidth + 'px', r = square ? '0' : '12px' // the tile's own radius, so it hugs the tile
+  const v = sv.corner[0] === 'T' ? 'top' : 'bottom', h = sv.corner[1] === 'L' ? 'left' : 'right'
+  return `width:${cueLen}px;height:${cueLen}px;border-color:${cueValue(sv)};` +
+    `border-width:0;border-${v}-width:${w};border-${h}-width:${w};border-${v}-${h}-radius:${r}`
+}
+
+function cueValue(sv) {
+  if (cueColour === 'team') return sv.server === US ? 'var(--us)' : 'var(--them)'
+  return COLOURS[cueColour].value
+}
+
+function renderPanel() {
+  const st = document.getElementById('status')
+  if (view === 'start' || !match.first) { st.innerHTML = 'Elegí quién saca tocando un lado de la banda.'; return }
+  const s = score(match)
+  const sv = serve(match, s)
+  if (!sv) { st.innerHTML = 'Partido terminado: no hay saque.'; return }
+  const who = sv.server === US ? 'Nosotros' : 'Ellos'
+  const side = sv.side === 'R' ? 'derecha' : 'izquierda'
+  const where = { TL: 'arriba a la izquierda', TR: 'arriba a la derecha', BL: 'abajo a la izquierda', BR: 'abajo a la derecha' }[sv.corner]
+  st.innerHTML = `<b>${who}</b> desde su <b>${side}</b> · esquina ${where}${s.tiebreak ? ' · tie-break' : ''}`
+}
+
+// ---------------------------------------------------------------- input
+// Pointer gestures, same thresholds as the app.
+const TAP_SLOP = 12, TAP_MS = 450, MIN_DX = 30, LONG_MS = 550
+let touch = null, longTimer = null
+
+function localPoint(e) {
+  const r = screenEl.getBoundingClientRect()
+  const k = r.width / 212
+  return { x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k }
+}
+
+screenEl.addEventListener('pointerdown', (e) => {
+  const p = localPoint(e)
+  touch = { ...p, lastX: p.x, lastY: p.y, t: Date.now(), long: false }
+  screenEl.setPointerCapture(e.pointerId)
+  clearTimeout(longTimer)
+  if (view === 'score') {
+    longTimer = setTimeout(() => {
+      if (!touch) return
+      if (Math.abs(touch.lastX - touch.x) > TAP_SLOP || Math.abs(touch.lastY - touch.y) > TAP_SLOP) return
+      touch.long = true
+      buzz(25)
+      view = 'menu'
+      render()
+    }, LONG_MS)
+  }
+})
+
+screenEl.addEventListener('pointermove', (e) => {
+  if (!touch) return
+  const p = localPoint(e)
+  touch.lastX = p.x; touch.lastY = p.y
+})
+
+screenEl.addEventListener('pointerup', (e) => {
+  clearTimeout(longTimer)
+  if (!touch) return
+  const t = touch; touch = null
+  if (t.long) return
+  const p = localPoint(e)
+  const dx = p.x - t.x, dy = p.y - t.y, held = Date.now() - t.t
+  const isTap = Math.abs(dx) <= TAP_SLOP && Math.abs(dy) <= TAP_SLOP && held <= TAP_MS
+  const target = document.elementFromPoint(e.clientX, e.clientY)
+  const act = target && target.closest('[data-act]')
+
+  if (view === 'start') {
+    if (!isTap) return
+    if (t.y < 200) start(THEM)
+    else if (t.y > 320) start(US)
+    return
+  }
+  if (view === 'menu' || view === 'closed') {
+    if (isTap && act) menuAction(act.dataset.act)
+    return
+  }
+  // score view
+  const side = t.y < 200 ? THEM : t.y > 320 ? US : null
+  if (!side) return
+  if (isTap) { add(side); return }
+  // swipe left takes a point away; a right swipe does nothing
+  if (dx > -MIN_DX || Math.abs(dx) < Math.abs(dy) * 1.5) return
+  remove(side)
+})
+
+screenEl.addEventListener('pointercancel', () => { clearTimeout(longTimer); touch = null })
+
+function start(first) {
+  match = { ...match, first }
+  view = 'score'
+  buzz(25)
+  render()
+}
+
+function menuAction(a) {
+  if (a === 'reset') { match = newMatch(match.golden); view = 'start' }
+  else if (a === 'first') match = { ...match, first: other(match.first || US) }
+  else if (a === 'golden') match = { ...match, golden: !match.golden }
+  else if (a === 'screen') keepOn = !keepOn
+  else if (a === 'exit') view = 'closed'
+  else if (a === 'back') view = 'score'
+  else if (a === 'open') view = match.first ? 'score' : 'start'
+  render()
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'm' || e.key === 'M') { if (view === 'score') view = 'menu'; else if (view === 'menu') view = 'score'; render(); return }
+  if (view !== 'score') return
+  const side = e.key === 'ArrowUp' ? THEM : e.key === 'ArrowDown' ? US : null
+  if (!side) return
+  e.preventDefault()
+  if (e.shiftKey) remove(side); else add(side)
+})
+
+// ---------------------------------------------------------------- panel
+const colorsEl = document.getElementById('colors')
+function renderColours() {
+  colorsEl.innerHTML = Object.entries(COLOURS).map(([k, c]) => {
+    const sw = c.value ? `background:${c.value}` : 'background:linear-gradient(90deg,var(--them) 50%,var(--us) 50%)'
+    return `<button class="chip" data-colour="${k}" aria-pressed="${k === cueColour}"><span class="sw" style="${sw}"></span>${c.label}</button>`
+  }).join('')
+}
+colorsEl.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-colour]')
+  if (!b) return
+  cueColour = b.dataset.colour
+  renderColours(); render()
+})
+
+const PLACES = { tile: 'Set en juego', board: 'Marcador entero' }
+const placesEl = document.getElementById('places')
+function renderPlaces() {
+  placesEl.innerHTML = Object.entries(PLACES).map(([k, label]) =>
+    `<button class="chip" data-place="${k}" aria-pressed="${k === cuePlace}">${label}</button>`).join('')
+}
+placesEl.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-place]')
+  if (!b) return
+  cuePlace = b.dataset.place
+  renderPlaces(); render()
+})
+
+function chips(el, values, current, fmt, key, onPick) {
+  el.innerHTML = values.map((v) => `<button class="chip" data-${key}="${v}" aria-pressed="${v === current}">${fmt(v)}</button>`).join('')
+  el.onclick = (e) => {
+    const b = e.target.closest(`[data-${key}]`)
+    if (b) onPick(parseFloat(b.dataset[key]))
+  }
+}
+function renderSizes() {
+  chips(document.getElementById('widths'), [1, 1.5, 2, 3], cueWidth, (v) => v + ' px', 'w', (v) => { cueWidth = v; renderSizes(); render() })
+  chips(document.getElementById('lens'), [12, 14, 18, 24], cueLen, (v) => v + ' px', 'l', (v) => { cueLen = v; renderSizes(); render() })
+}
+
+const g = (w) => w.repeat(4)
+function set(w, l, n, m) { // n games for w, m for l, alternating so it never ends early
+  let s = ''
+  for (let i = 0; i < Math.max(n, m); i++) { if (i < m) s += g(l); if (i < n) s += g(w) }
+  return s
+}
+const PRESETS = [
+  ['Inicio', () => newMatch(match.golden)],
+  ['30-15', () => ({ history: 'utt', golden: false })],
+  ['Deuce', () => ({ history: 'uuuttt', golden: false })],
+  ['Punto de oro', () => ({ history: set('u', 't', 2, 1) + 'uuuttt', golden: true })],
+  ['Tie-break', () => ({ history: set('t', 'u', 6, 4) + set('u', 't', 6, 6) + 'ut', golden: false })],
+  ['3 sets', () => ({ history: set('t', 'u', 6, 4) + set('u', 't', 6, 3) + set('u', 't', 2, 1) + 'u', golden: false })],
+  ['Ganamos', () => ({ history: set('t', 'u', 6, 4) + set('u', 't', 6, 3) + set('u', 't', 7, 5), golden: false })],
+]
+const presetsEl = document.getElementById('presets')
+presetsEl.innerHTML = PRESETS.map(([name], i) => `<button class="chip" data-preset="${i}">${name}</button>`).join('')
+presetsEl.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-preset]')
+  if (!b) return
+  const m = PRESETS[+b.dataset.preset][1]()
+  match = { ...m, first: match.first || US }
+  view = m.history === '' ? 'start' : 'score'
+  if (m.history === '') match.first = null
+  render()
+})
+
+// ---------------------------------------------------------------- sizing
+function fit() {
+  const s = Math.max(1, Math.min(1.6, (window.innerWidth - 40) / 212, (window.innerHeight * 0.8) / 520))
+  const f = document.getElementById('fit')
+  f.style.width = 212 * s + 'px'
+  f.style.height = 520 * s + 'px'
+  screenEl.style.transform = `scale(${s})`
+}
+window.addEventListener('resize', fit)
+fit()
+renderPlaces()
+renderSizes()
+renderColours()
+render()
+</script>
+</body>
+</html>

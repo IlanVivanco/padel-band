@@ -2,9 +2,25 @@
   <div class="page">
     <!-- Score view. Top half is them (orange), bottom half is us (blue); the
          same colours run through the scoreboard, so no labels are needed.
-         Tap or swipe right on a half: point for that side. Swipe left: take
-         one away. Long-press: menu. -->
-    <div class="score" if="{{ !menu }}">
+         Tap a half: point for that side. Swipe left: take one away.
+         Long-press: menu. -->
+    <!-- Who serves first: shown for a new match. Tap a half to choose. -->
+    <div class="score" if="{{ !menu && ask }}">
+      <div id="ask-them" class="half half-them-hi" onclick="chooseThem">
+        <div class="ask-ball"></div>
+        <text class="ask-text ask-them">SACAN</text>
+      </div>
+      <div class="board board-ask">
+        <text class="ask-title">¿Quién saca?</text>
+        <text class="ask-hint">Tocá un lado</text>
+      </div>
+      <div id="ask-us" class="half half-us-hi" onclick="chooseUs">
+        <div class="ask-ball"></div>
+        <text class="ask-text ask-us">SACAMOS</text>
+      </div>
+    </div>
+
+    <div class="score" if="{{ !menu && !ask }}">
       <!-- Each half is a fixed three-slot stack (label / points / label), so
            the points stay centred whether or not a label is showing. The
            label sits on the outer side: above for them, below for us. -->
@@ -22,21 +38,21 @@
            slot / them / slot / us / slot, so both numbers sit symmetrically
            about the middle; a winner's bar goes in the slot below its number. -->
       <div class="board">
-        <div class="col {{ colCur[0] ? 'col-cur' : '' }}" if="{{ colOn[0] }}">
+        <div id="col0" class="col {{ colCur[0] ? 'col-cur' : '' }}" if="{{ colOn[0] }}">
           <div class="bar-slot"></div>
           <text id="c0-them" class="num {{ colThemCls[0] }}">{{ colThem[0] }}</text>
           <div class="bar-slot"><div class="bar {{ colThemBar[0] }}"></div></div>
           <text id="c0-us" class="num {{ colUsCls[0] }}">{{ colUs[0] }}</text>
           <div class="bar-slot"><div class="bar {{ colUsBar[0] }}"></div></div>
         </div>
-        <div class="col {{ colCur[1] ? 'col-cur' : '' }}" if="{{ colOn[1] }}">
+        <div id="col1" class="col {{ colCur[1] ? 'col-cur' : '' }}" if="{{ colOn[1] }}">
           <div class="bar-slot"></div>
           <text id="c1-them" class="num {{ colThemCls[1] }}">{{ colThem[1] }}</text>
           <div class="bar-slot"><div class="bar {{ colThemBar[1] }}"></div></div>
           <text id="c1-us" class="num {{ colUsCls[1] }}">{{ colUs[1] }}</text>
           <div class="bar-slot"><div class="bar {{ colUsBar[1] }}"></div></div>
         </div>
-        <div class="col {{ colCur[2] ? 'col-cur' : '' }}" if="{{ colOn[2] }}">
+        <div id="col2" class="col {{ colCur[2] ? 'col-cur' : '' }}" if="{{ colOn[2] }}">
           <div class="bar-slot"></div>
           <text id="c2-them" class="num {{ colThemCls[2] }}">{{ colThem[2] }}</text>
           <div class="bar-slot"><div class="bar {{ colThemBar[2] }}"></div></div>
@@ -53,17 +69,25 @@
         <text id="label-us" class="label label-us">{{ usLabel }}</text>
       </div>
 
-      <!-- Status pill (TIE-BREAK / PUNTO DE ORO), centred on the edge between
-           the scoreboard and our half, so nothing else moves when it shows. -->
+      <!-- Serve cue: a grey arc on one corner of the current-set tile. The
+           tile's corners map to the court seen from our side, so the arc
+           marks the server's quadrant (their right is the screen's left).
+           Vela has no per-side borders, so the arc is an image placed over
+           the tile's known position (see .cn<cols>-<corner>). -->
+      <image id="serve-cue" class="serve-cue {{ cueCls }}" src="{{ cueSrc }}" if="{{ cueSrc }}"></image>
+
+      <!-- Status pill (TIE-BREAK / PUNTO DE ORO), just below the scoreboard
+           so the edge between the board and our half stays visible. -->
       <div class="pill-wrap" if="{{ pill }}">
         <div class="pill"><text id="pill" class="pill-text">{{ pill }}</text></div>
       </div>
     </div>
 
-    <!-- Menu: reset, golden point, keep screen on, exit, back. -->
+    <!-- Menu: reset, who served first, golden point, keep screen on, exit, back. -->
     <div class="menu" if="{{ menu }}">
       <text class="menu-title">Menú</text>
       <div id="m-reset" class="btn btn-danger" onclick="resetMatch"><text class="btn-label">Reiniciar partido</text></div>
+      <div id="m-first" class="btn" onclick="toggleFirst"><div class="btn-ball"></div><text class="btn-label">Saque: {{ firstUs ? 'Nosotros' : 'Ellos' }}</text></div>
       <div id="m-golden" class="btn" onclick="toggleGolden"><text class="btn-label">Punto de oro: {{ golden ? 'Sí' : 'No' }}</text></div>
       <div id="m-screen" class="btn" onclick="toggleScreen"><text class="btn-label">Pantalla fija: {{ keepOn ? 'Sí' : 'No' }}</text></div>
       <div id="m-exit" class="btn" onclick="exitApp"><text class="btn-label">Salir</text></div>
@@ -78,8 +102,8 @@ import vibrator from '@system.vibrator'
 import brightness from '@system.brightness'
 import app from '@system.app'
 import {
-  US, THEM, newMatch, score, addPoint, removePoint, setGolden, pointLabels,
-  serialize, deserialize
+  US, THEM, newMatch, score, addPoint, removePoint, setGolden, setFirst, serve,
+  pointLabels, serialize, deserialize
 } from '../../common/padel'
 
 var STORE_KEY = 'padel-band-state'
@@ -104,6 +128,10 @@ function pointOf(evt, list) {
 export default {
   private: {
     menu: false,
+    ask: true,
+    firstUs: true,
+    cueSrc: '',
+    cueCls: '',
     golden: false,
     keepOn: true,
     themPts: '0',
@@ -169,9 +197,9 @@ export default {
     this.setScreen(false)
   },
 
-  // The system treats a right swipe as "back". While the score view is up,
-  // a right swipe is a point, so it must not close the app; Salir in the
-  // menu exits instead.
+  // The system treats a right swipe as "back". It does nothing here, so a
+  // stray swipe mid-match can't close the scoreboard; Salir in the menu
+  // exits instead.
   onBackPress() {
     if (this.menu) this.menu = false
     return true
@@ -206,10 +234,9 @@ export default {
       this.add(side)
       return
     }
-    // Horizontal swipe: right adds, left subtracts.
-    if (Math.abs(dx) < MIN_DX || Math.abs(dx) < Math.abs(dy) * 1.5) return
-    if (dx > 0) this.add(side)
-    else this.remove(side)
+    // Swipe left: take a point away. A right swipe does nothing.
+    if (dx > -MIN_DX || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    this.remove(side)
   },
 
   // A cancelled touch (e.g. the system took the gesture) never scores.
@@ -266,6 +293,24 @@ export default {
 
   // --- menu ---------------------------------------------------------------
 
+  // --- who serves first ---------------------------------------------------
+
+  chooseThem() { this.choose(THEM) },
+  chooseUs() { this.choose(US) },
+
+  choose(side) {
+    match = setFirst(match, side)
+    this.save()
+    this.buzz('short')
+    this.render()
+  },
+
+  toggleFirst() {
+    match = setFirst(match, match.first === THEM ? US : THEM)
+    this.save()
+    this.render()
+  },
+
   openMenu() {
     touch = null
     this.menu = true
@@ -319,6 +364,8 @@ export default {
     var l = pointLabels(s, match.golden)
     var w = s.winner
     this.golden = match.golden
+    this.ask = !match.first
+    this.firstUs = match.first !== THEM
 
     // Points, labels and half tints.
     var adv = l.u === 'AD' ? US : (l.t === 'AD' ? THEM : null)
@@ -405,6 +452,17 @@ export default {
     this.colThemBar = tb
     this.colUsBar = ub
 
+    // Serve cue over the current-set tile (always the last column).
+    var sv = serve(match, s)
+    if (sv && !w) {
+      var c = sv.corner.toLowerCase()
+      this.cueSrc = '/common/serve-' + c + '.png'
+      this.cueCls = 'cn' + cols.length + '-' + c
+    } else {
+      this.cueSrc = ''
+      this.cueCls = ''
+    }
+
     // Status pill: only when something special is going on.
     var pill = ''
     if (!w && s.tiebreak) pill = 'TIE-BREAK'
@@ -419,6 +477,8 @@ export default {
    them  #ff9f0a  dim #734804  set-dim #5c4520  tint #3a2405  flash #5c3a08
    us    #64d2ff  dim #2d5f73  set-dim #245066  tint #062b40  flash #0a4766
    Layout (px): half 200 | board 120 | half 200 = 520.
+   Serve cue: grey (#8e8e93) arc on the current-set tile; lime (#d9f212)
+   ball on the who-serves screen.
    Big points: one style for digits, AD and WIN (88 px bold; WIN is the
    widest text that fits the capsule's rounded ends). */
 .page {
@@ -569,11 +629,69 @@ export default {
   background-color: #64d2ff;
 }
 
-/* --- status pill, centred on y = 320 (board / our half) --- */
+/* --- serve cue --- */
+/* 12x12 arc images placed on the current-set tile's corners. Tile geometry:
+   columns are 58 wide with 3px margins (64 each), centred; the tile is the
+   last column, y 208-312. Class cn<number of columns>-<corner>. */
+.serve-cue {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+}
+.cn1-tl {
+  left: 77px;
+  top: 208px;
+}
+.cn1-tr {
+  left: 123px;
+  top: 208px;
+}
+.cn1-bl {
+  left: 77px;
+  top: 300px;
+}
+.cn1-br {
+  left: 123px;
+  top: 300px;
+}
+.cn2-tl {
+  left: 109px;
+  top: 208px;
+}
+.cn2-tr {
+  left: 155px;
+  top: 208px;
+}
+.cn2-bl {
+  left: 109px;
+  top: 300px;
+}
+.cn2-br {
+  left: 155px;
+  top: 300px;
+}
+.cn3-tl {
+  left: 141px;
+  top: 208px;
+}
+.cn3-tr {
+  left: 187px;
+  top: 208px;
+}
+.cn3-bl {
+  left: 141px;
+  top: 300px;
+}
+.cn3-br {
+  left: 187px;
+  top: 300px;
+}
+
+/* --- status pill, 6px below the board / our half edge (y 326-346) --- */
 .pill-wrap {
   position: absolute;
   left: 0px;
-  top: 310px;
+  top: 326px;
   width: 212px;
   height: 20px;
   flex-direction: row;
@@ -597,6 +715,49 @@ export default {
   text-align: center;
 }
 
+/* --- who serves first --- */
+.board-ask {
+  flex-direction: column;
+}
+.ask-title {
+  height: 26px;
+  line-height: 26px;
+  font-size: 20px;
+  font-weight: bold;
+  color: #ffffff;
+  text-align: center;
+}
+.ask-hint {
+  height: 18px;
+  line-height: 18px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #8a8a8a;
+  text-align: center;
+}
+.ask-ball {
+  width: 26px;
+  height: 26px;
+  border-width: 1px;
+  border-color: #d9f212;
+  border-radius: 13px;
+  background-color: #d9f212;
+}
+.ask-text {
+  height: 34px;
+  line-height: 34px;
+  margin-top: 10px;
+  font-size: 26px;
+  font-weight: bold;
+  text-align: center;
+}
+.ask-them {
+  color: #ff9f0a;
+}
+.ask-us {
+  color: #64d2ff;
+}
+
 /* --- menu --- */
 .menu {
   width: 212px;
@@ -610,16 +771,26 @@ export default {
   line-height: 26px;
   font-size: 20px;
   color: #ffffff;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 .btn {
   width: 184px;
-  height: 58px;
-  margin-top: 8px;
+  height: 50px;
+  margin-top: 7px;
   border-radius: 16px;
+  flex-direction: row;
   justify-content: center;
   align-items: center;
   background-color: #262626;
+}
+.btn-ball {
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border-width: 1px;
+  border-color: #d9f212;
+  border-radius: 6px;
+  background-color: #d9f212;
 }
 .btn-danger {
   background-color: #4a1a16;

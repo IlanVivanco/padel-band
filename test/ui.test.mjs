@@ -50,11 +50,12 @@ test.after(async () => {
   server?.close()
 })
 
-// Opens the app with a saved match (history of point winners).
-async function open(history = '', golden = false) {
+// Opens the app with a saved match (history of point winners). `first` is
+// the team that served first; null shows the who-serves screen.
+async function open(history = '', golden = false, first = 'u') {
   const page = await browser.newPage({ viewport: { width: 212, height: 520 } })
   await page.goto(base + '/test/harness/index.html')
-  await page.evaluate(([k, v]) => localStorage.setItem(k, v), [STORE, JSON.stringify({ v: 1, h: history, g: golden })])
+  await page.evaluate(([k, v]) => localStorage.setItem(k, v), [STORE, JSON.stringify({ v: 1, h: history, g: golden, f: first })])
   await page.reload()
   await page.waitForFunction(() => window.__ready && window.__storageGets >= 1)
   await page.waitForTimeout(30)
@@ -159,7 +160,7 @@ test('scoreboard columns are centred and symmetric', async () => {
   }
 })
 
-test('the pill is centred on the board / us edge and moves nothing', async () => {
+test('the pill sits just below the board and moves nothing', async () => {
   const plain = await open(STATES['02-normal'][0])
   const before = await boxes(plain, ['c0-them', 'pts-us'])
   await plain.close()
@@ -167,10 +168,18 @@ test('the pill is centred on the board / us edge and moves nothing', async () =>
     const page = await open(...STATES[name])
     const b = await boxes(page, ['pill', 'c0-them', 'pts-us'])
     assert.ok(b.pill, name + ': pill shown')
-    near(b.pill.cy, 320, name + ': pill centred on the edge')
+    near(b.pill.cy, 336, name + ': pill 6px below the board edge')
     near(b.pill.cx, 106, name + ': pill centred horizontally')
     near(b['c0-them'].cy, before['c0-them'].cy, name + ': board did not move')
     near(b['pts-us'].cy, before['pts-us'].cy, name + ': points did not move')
+    // the board edge (y 320) stays visible, and the pill clears our points
+    assert.ok(b.pill.y >= 322, name + ': pill clears the board edge')
+    const ink = await page.evaluate(() => {
+      const s = document.getElementById('screen').getBoundingClientRect()
+      const r = document.createRange(); r.selectNodeContents(document.getElementById('pts-us'))
+      return r.getBoundingClientRect().top - s.top
+    })
+    assert.ok(b.pill.y + b.pill.h <= ink, name + ': pill clears our points')
     await page.close()
   }
 })
@@ -217,7 +226,7 @@ test('labels and texts for each state', async () => {
   assert.deepEqual(await t('08-win-them', ['pts-them', 'label-them']), { 'pts-them': 'WIN', 'label-them': 'GANAN' })
 })
 
-test('tap and swipes score on the right side', async () => {
+test('tap adds, swipe left subtracts, swipe right does nothing', async () => {
   const page = await open('')
   const pts = () => page.evaluate(() => [window.harness.text('pts-them'), window.harness.text('pts-us')])
   const tap = async (x, y) => {
@@ -234,7 +243,9 @@ test('tap and swipes score on the right side', async () => {
   }
   await tap(106, 420)
   assert.deepEqual(await pts(), ['0', '15'])
-  await swipe(40, 170, 100)
+  await tap(106, 100)
+  assert.deepEqual(await pts(), ['15', '15'])
+  await swipe(40, 170, 100) // right: no change
   assert.deepEqual(await pts(), ['15', '15'])
   await swipe(170, 40, 420)
   assert.deepEqual(await pts(), ['15', '0'])
@@ -242,5 +253,99 @@ test('tap and swipes score on the right side', async () => {
   assert.deepEqual(await pts(), ['15', '0'])
   const vib = await page.evaluate(() => window.__vibrations)
   assert.deepEqual(vib, ['short', 'short', 'short'])
+  await page.close()
+})
+
+
+// --- serve -----------------------------------------------------------------
+
+test('a new match asks who serves, and a tap chooses', async () => {
+  for (const [y, first] of [[100, 't'], [420, 'u']]) {
+    const page = await open('', false, null)
+    assert.ok(await page.evaluate(() => !!document.getElementById('ask-them')), 'ask screen shown')
+    const issues = await page.evaluate(() => window.harness.layoutIssues())
+    assert.deepEqual(issues.filter((i) => !/^outside the capsule: (board|ask-them|ask-us)/.test(i)), [])
+    if (first === 't') await shot(page, '00-ask')
+    await page.mouse.click(106, y)
+    await page.waitForTimeout(20)
+    assert.equal(await page.evaluate(() => !!document.getElementById('ask-them')), false, 'score view after choosing')
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('st:padel-band-state')))
+    assert.equal(saved.f, first)
+    await page.close()
+  }
+})
+
+test('the serve cue sits exactly on a corner of the current-set tile', async () => {
+  const cases = [
+    // [history, first, expected corner]
+    ['', 'u', 'br'],
+    ['', 't', 'tl'],
+    ['t', 'u', 'bl'],
+    ['u', 't', 'tr'],
+    [set('u', 't', 6, 4) + set('t', 'u', 3, 2), 'u', 'tl'], // 15 games: they serve, 0 points
+    [STATES['06-tiebreak'][0], 'u', null], // checked separately below
+  ]
+  for (const [h, first, want] of cases) {
+    const page = await open(h, false, first)
+    const r = await page.evaluate(() => {
+      const s = document.getElementById('screen').getBoundingClientRect()
+      const cue = document.getElementById('serve-cue')
+      const tiles = Array.from(document.querySelectorAll('.col-cur'))
+      const rel = (el) => { const b = el.getBoundingClientRect(); return { x: b.left - s.left, y: b.top - s.top, r: b.right - s.left, b: b.bottom - s.top } }
+      return { cue: cue && rel(cue), src: cue && cue.getAttribute('src'), tile: tiles.length === 1 ? rel(tiles[0]) : null }
+    })
+    assert.ok(r.cue && r.tile, 'cue and tile present')
+    const corner = r.src.match(/serve-(\w\w)\.png/)[1]
+    if (want) assert.equal(corner, want, `history ${h.length} pts, first ${first}`)
+    // the 12x12 arc must sit flush in that corner of the tile
+    near(corner[1] === 'l' ? r.cue.x : r.cue.r, corner[1] === 'l' ? r.tile.x : r.tile.r, 'cue x flush')
+    near(corner[0] === 't' ? r.cue.y : r.cue.b, corner[0] === 't' ? r.tile.y : r.tile.b, 'cue y flush')
+    await page.close()
+  }
+})
+
+test('the cue is flush with the tile with 1, 2 and 3 sets on the board', async () => {
+  const boards = [
+    '', // 1 column
+    set('u', 't', 6, 4), // 2 columns
+    set('u', 't', 6, 4) + set('t', 'u', 6, 3), // 3 columns
+  ]
+  for (const h of boards) {
+    for (const [pts, first] of [['', 'u'], ['t', 'u'], ['', 't'], ['u', 't']]) {
+      // shift who serves the current game so all four corners show up
+      const page = await open(h + pts, false, first)
+      const r = await page.evaluate(() => {
+        const s = document.getElementById('screen').getBoundingClientRect()
+        const rel = (el) => { const b = el.getBoundingClientRect(); return { x: b.left - s.left, y: b.top - s.top, r: b.right - s.left, b: b.bottom - s.top } }
+        const cue = document.getElementById('serve-cue')
+        return { cue: rel(cue), src: cue.getAttribute('src'), tile: rel(document.querySelector('.col-cur')) }
+      })
+      const c = r.src.match(/serve-(\w\w)\.png/)[1]
+      near(c[1] === 'l' ? r.cue.x : r.cue.r, c[1] === 'l' ? r.tile.x : r.tile.r, `${h.length}/${pts}/${first} x`)
+      near(c[0] === 't' ? r.cue.y : r.cue.b, c[0] === 't' ? r.tile.y : r.tile.b, `${h.length}/${pts}/${first} y`)
+      await page.close()
+    }
+  }
+})
+
+test('no serve cue once the match is over', async () => {
+  const page = await open(STATES['07-win-us'][0])
+  assert.equal(await page.evaluate(() => !!document.getElementById('serve-cue')), false)
+  await page.close()
+})
+
+test('the menu switches who served first, and the cue follows', async () => {
+  const page = await open('', false, 'u')
+  const cue = () => page.evaluate(() => document.getElementById('serve-cue').getAttribute('src'))
+  assert.match(await cue(), /serve-br/)
+  await page.evaluate(() => { window.harness.vm.menu = true })
+  await page.waitForTimeout(20)
+  assert.equal(await page.evaluate(() => window.harness.text('m-first') || document.getElementById('m-first').textContent.trim()), 'Saque: Nosotros')
+  await page.click('#m-first')
+  await page.waitForTimeout(20)
+  assert.match(await page.evaluate(() => document.getElementById('m-first').textContent), /Saque: Ellos/)
+  await page.click('#m-back')
+  await page.waitForTimeout(20)
+  assert.match(await cue(), /serve-tl/)
   await page.close()
 })

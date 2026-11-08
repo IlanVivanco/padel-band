@@ -7,6 +7,11 @@
 //
 // Rules: points 0/15/30/40, deuce and advantage (or golden point at 40-40 if
 // enabled), sets to 6 games won by 2, tiebreak to 7 won by 2 at 6-6, best of 3.
+//
+// Serve: `first` is the team that served the first game (null until chosen).
+// Teams alternate games, also across sets; each game starts from the
+// server's right and alternates sides every point. In a tiebreak the team
+// whose turn it is serves one point, then two each.
 
 export var US = 'u'
 export var THEM = 't'
@@ -17,7 +22,11 @@ function other(side) {
 }
 
 export function newMatch(golden) {
-  return { history: '', golden: !!golden }
+  return { history: '', golden: !!golden, first: null }
+}
+
+function withHistory(m, history) {
+  return { history: history, golden: m.golden, first: m.first || null }
 }
 
 // Replays the history. Returns the full derived score.
@@ -73,7 +82,7 @@ export function score(m) {
 // Adds a point for `side`. Ignored once the match is over.
 export function addPoint(m, side) {
   if (score(m).winner) return m
-  return { history: m.history + side, golden: m.golden }
+  return withHistory(m, m.history + side)
 }
 
 // Takes a point away from `side`:
@@ -85,15 +94,42 @@ export function addPoint(m, side) {
 export function removePoint(m, side) {
   var h = m.history
   if (!h.length) return m
-  if (h[h.length - 1] === side) return { history: h.slice(0, -1), golden: m.golden }
+  if (h[h.length - 1] === side) return withHistory(m, h.slice(0, -1))
   var start = score(m).gameStart
   var i = h.lastIndexOf(side)
   if (i < start) return m
-  return { history: h.slice(0, i) + h.slice(i + 1), golden: m.golden }
+  return withHistory(m, h.slice(0, i) + h.slice(i + 1))
 }
 
 export function setGolden(m, golden) {
-  return { history: m.history, golden: !!golden }
+  return { history: m.history, golden: !!golden, first: m.first || null }
+}
+
+// Sets which team served the first game. The whole serve sequence is
+// derived from it, so changing it mid-match re-labels every game.
+export function setFirst(m, side) {
+  return { history: m.history, golden: m.golden, first: side === US || side === THEM ? side : null }
+}
+
+// Who serves the next point and from where. Returns null before the first
+// server is chosen and once the match is over. `side` is the server's own
+// 'R' / 'L'. `corner` is the server's quadrant on screen, which shows the
+// court from our side: them on top, us below; our right is the screen's
+// right, their right (they face us) is the screen's left.
+export function serve(m, s) {
+  if (!s) s = score(m)
+  if (s.winner || !m.first) return null
+  var n = s.games.u + s.games.t // games played so far
+  for (var i = 0; i < s.setScores.length; i++) n += s.setScores[i][0] + s.setScores[i][1]
+  var gameServer = n % 2 === 0 ? m.first : other(m.first)
+  var k = s.points.u + s.points.t // points played in this game
+  var server = gameServer
+  if (s.tiebreak && Math.floor((k + 1) / 2) % 2 === 1) server = other(gameServer)
+  var side = k % 2 === 0 ? 'R' : 'L'
+  var corner
+  if (server === US) corner = side === 'R' ? 'BR' : 'BL'
+  else corner = side === 'R' ? 'TL' : 'TR'
+  return { server: server, side: side, corner: corner }
 }
 
 var LABELS = ['0', '15', '30', '40']
@@ -110,14 +146,15 @@ export function pointLabels(s, golden) {
 }
 
 export function serialize(m) {
-  return JSON.stringify({ v: 1, h: m.history, g: m.golden })
+  return JSON.stringify({ v: 1, h: m.history, g: m.golden, f: m.first || null })
 }
 
 export function deserialize(str) {
   try {
     var o = JSON.parse(str)
     if (o && o.v === 1 && typeof o.h === 'string' && /^[ut]*$/.test(o.h)) {
-      return { history: o.h, golden: !!o.g }
+      // `f` was added in 0.4.0; older saves have no first server yet.
+      return { history: o.h, golden: !!o.g, first: o.f === US || o.f === THEM ? o.f : null }
     }
   } catch (e) {}
   return newMatch(false)
