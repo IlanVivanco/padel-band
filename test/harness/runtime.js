@@ -108,10 +108,20 @@ function create(v) {
   const el = document.createElement(TAGS[v.type])
   el.dataset.type = v.type
   el.__handlers = {}
-  for (const ev of Object.keys(v.opts.events || {})) {
+  el.__bound = new Set()
+  update(el, v)
+  return el
+}
+
+// Registers a DOM listener for each Vela event the element has. Called on
+// every update: the diff can reuse an element for a node with other events
+// (e.g. a view swapped by `if`), so new event types must be bound then too.
+function bindEvents(el, events) {
+  for (const ev of Object.keys(events || {})) {
     if (!(ev in EVENT_MAP)) throw new Error('harness: unsupported event ' + ev)
     const domEv = EVENT_MAP[ev]
-    if (!domEv) continue
+    if (!domEv || el.__bound.has(ev)) continue
+    el.__bound.add(ev)
     el.addEventListener(domEv, (e) => {
       const fn = el.__handlers[ev]
       if (!fn) return
@@ -128,9 +138,8 @@ function create(v) {
       }
     })
   }
-  update(el, v)
-  return el
 }
+
 
 function update(el, v) {
   const o = v.opts
@@ -152,6 +161,7 @@ function update(el, v) {
     if (el.textContent !== text) el.textContent = text
   }
   el.__handlers = Object.assign({}, o.events || {})
+  bindEvents(el, o.events)
   patchChildren(el, expand(v.children, []))
 }
 

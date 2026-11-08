@@ -85,3 +85,82 @@ test('serialize round-trips and rejects junk', () => {
   assert.deepEqual(p.deserialize('nope'), p.newMatch(false))
   assert.deepEqual(p.deserialize('{"v":1,"h":"ux"}'), p.newMatch(false))
 })
+
+// --- serve -----------------------------------------------------------------
+
+const withFirst = (m, f) => p.setFirst(m, f)
+const sv = (points, first, golden = false) => p.serve(withFirst(play(points, golden), first))
+const corner = (points, first, golden) => sv(points, first, golden).corner
+
+test('no serve before the first server is chosen, or after the match', () => {
+  assert.equal(p.serve(play('uu')), null)
+  const set = game('u').repeat(6)
+  assert.equal(sv(set + set, 'u'), null)
+})
+
+test('each game starts from the right and alternates sides every point', () => {
+  assert.deepEqual(sv('', 'u'), { server: 'u', side: 'R', corner: 'BR' })
+  assert.deepEqual(sv('t', 'u'), { server: 'u', side: 'L', corner: 'BL' })
+  assert.deepEqual(sv('tu', 'u'), { server: 'u', side: 'R', corner: 'BR' })
+  // deuce and advantage keep alternating
+  assert.equal(sv('uuuttt', 'u').side, 'R')
+  assert.equal(sv('uuuttt' + 'u', 'u').side, 'L')
+})
+
+test('their right is the screen\'s left (they face us)', () => {
+  assert.deepEqual(sv('', 't'), { server: 't', side: 'R', corner: 'TL' })
+  assert.deepEqual(sv('u', 't'), { server: 't', side: 'L', corner: 'TR' })
+})
+
+test('teams alternate games, also across sets', () => {
+  assert.equal(sv(game('u'), 'u').server, 't')
+  assert.equal(sv(game('u') + game('t'), 'u').server, 'u')
+  // 6-4 = 10 games: the first server serves the first game of set 2
+  const set64 = (game('u') + game('t')).repeat(4) + game('u') + game('u')
+  assert.equal(p.score(play(set64)).setScores.length, 1)
+  assert.equal(sv(set64, 'u').server, 'u')
+  // 6-3 = 9 games: the other team opens set 2
+  const set63 = (game('u') + game('t')).repeat(3) + game('u').repeat(3)
+  assert.equal(sv(set63, 'u').server, 't')
+})
+
+test('tiebreak: one point, then two each, sides alternating', () => {
+  // 6-6 after 12 games: the first server opens the tiebreak
+  const sixAll = (game('u') + game('t')).repeat(6)
+  assert.equal(p.score(play(sixAll)).tiebreak, true)
+  const servers = []
+  const sides = []
+  for (let k = 0; k < 7; k++) {
+    const pts = 'ut'.repeat(4).slice(0, k)
+    const s = sv(sixAll + pts, 'u')
+    servers.push(s.server)
+    sides.push(s.side)
+  }
+  assert.deepEqual(servers, ['u', 't', 't', 'u', 'u', 't', 't'])
+  assert.deepEqual(sides, ['R', 'L', 'R', 'L', 'R', 'L', 'R'])
+  // the tiebreak counts as a game: the team that received first opens the next set
+  const tb = sixAll + 'u'.repeat(7)
+  assert.equal(p.score(play(tb)).setScores.length, 1)
+  assert.equal(sv(tb, 'u').server, 't')
+})
+
+test('golden point keeps the side rule', () => {
+  assert.equal(corner('uuuttt', 'u', true), 'BR')
+})
+
+test('changing the first server re-labels the match', () => {
+  const m = p.setFirst(play('u'), 'u')
+  assert.equal(p.serve(m).corner, 'BL')
+  assert.equal(p.serve(p.setFirst(m, 't')).corner, 'TR')
+})
+
+test('first server survives every edit and the save', () => {
+  let m = p.setFirst(p.newMatch(false), 't')
+  m = p.addPoint(m, 'u')
+  m = p.removePoint(m, 'u')
+  m = p.setGolden(m, true)
+  assert.equal(m.first, 't')
+  assert.equal(p.deserialize(p.serialize(m)).first, 't')
+  // saves from before 0.4.0 have no `f`
+  assert.equal(p.deserialize('{"v":1,"h":"ut","g":false}').first, null)
+})

@@ -8,6 +8,35 @@ Versions marked *(released)* have a `.rpk` on
 [GitHub Releases](https://github.com/IlanVivanco/padel-band/releases). The
 others were test builds on the band.
 
+## [0.4.0] — 2026-11-08
+
+### Added
+- **Serve indicator:** a grey arc on one corner of the current-set tile marks
+  the server's quadrant, with the tile read as the court seen from our side.
+  It follows the padel rules: teams alternate games (across sets too), each
+  game starts from the right, the side switches every point, and in a
+  tiebreak the team whose turn it is serves one point, then two each.
+- **Who serves first:** a new match opens on *¿Quién saca?*, where you tap
+  the serving team. *Reiniciar partido* asks again.
+- Menu option *Saque: Nosotros / Ellos* to fix who served first; the whole
+  serve sequence updates.
+- Dev emulator (`npm run emulator`): the band screen in the browser, running
+  on the app's own logic, with a panel to jump to states and try cue styles.
+- Serve unit tests, and UI tests for the who-serves screen, the arc's
+  position on the tile with 1-3 sets, and the menu option.
+
+### Changed
+- The `TIE-BREAK` / `PUNTO DE ORO` pill moved just below the scoreboard, so
+  the edge between the scoreboard and our half stays visible.
+- Menu buttons are slightly shorter, to fit the new option.
+- Saved matches also store who served first. Saves from earlier versions
+  load fine and ask who serves.
+
+### Fixed
+- Test harness: an element reused across views now gets listeners for its
+  new events. Before, a tap after the who-serves screen didn't register in
+  the tests.
+
 ## [0.3.2] — 2026-11-05 *(released)*
 
 ### Added
@@ -83,5 +112,6 @@ others were test builds on the band.
 - Long-press menu: reset, golden point, keep screen on, exit.
 - JSC bytecode build, which the Band 10 needs to sideload an app.
 
+[0.4.0]: https://github.com/IlanVivanco/padel-band/releases/tag/v0.4.0
 [0.3.2]: https://github.com/IlanVivanco/padel-band/releases/tag/v0.3.2
 [0.2.2]: https://github.com/IlanVivanco/padel-band/releases/tag/v0.2.2
