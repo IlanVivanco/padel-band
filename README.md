@@ -9,7 +9,8 @@ every set at a glance without leaving the court.
 ![Pádel: mid-match, our advantage, tiebreak and match won](docs/preview.png)
 
 <sub>Rendered from the compiled app in the test harness (212 × 520 px capsule
-screen). The app's on-screen labels are in Spanish.</sub>
+screen). The app speaks Spanish (the default), English, French, German
+and Italian.</sub>
 
 > **Unofficial.** Xiaomi has no public way to install third-party apps, so
 > Pádel is installed by sideloading (see [Install](#install-with-miband-hack)).
@@ -57,6 +58,8 @@ screen). The app's on-screen labels are in Spanish.</sub>
   the band closes the app.
 - **Match history.** The last 10 matches are kept, the one in play included,
   with the date and the games of each set.
+- **Five languages.** Spanish (the default), English, French, German and
+  Italian, chosen in *Más*.
 
 ## How to use it
 
@@ -91,7 +94,8 @@ bottom edge, or right, closes it. It opens from the who-serves screen too.
 - *Más*: the settings that outlive a match. *Iguales* shows the deuce rule
   and a tap moves to the next one (*Ventaja*, *Punto de oro*, *Star
   Point*). *Pantalla fija* keeps the screen on while the app is open
-  (released when you leave it).
+  (released when you leave it). *Idioma* picks the language: Español,
+  English, Français, Deutsch or Italiano; a tap moves to the next one.
 
 A right swipe in *Más*, *Historial* or the new-match question goes back to
 the panel; a swipe up from the handle closes them.
