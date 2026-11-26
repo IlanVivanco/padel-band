@@ -54,12 +54,14 @@ test.after(async () => {
 // the deuce rule ('adv', 'gold', 'star'; false / true as in old saves);
 // `first` is the team that served first; null shows the who-serves screen.
 // Animations are off (?noanim), so every state shows at once.
-async function open(history = '', deuce = 'adv', first = 'u') {
+// `lang` is the saved language; none leaves the prefs unset (Spanish).
+async function open(history = '', deuce = 'adv', first = 'u', lang = null) {
   const page = await browser.newPage({ viewport: { width: 212, height: 520 } })
   await page.goto(base + '/test/harness/index.html?noanim')
   await page.evaluate(([k, v]) => localStorage.setItem(k, v), [STORE, JSON.stringify({ v: 1, h: history, d: deuce, f: first })])
+  if (lang) await page.evaluate((l) => localStorage.setItem('st:padel-band-prefs', JSON.stringify({ keepOn: true, lang: l })), lang)
   await page.reload()
-  await page.waitForFunction(() => window.__ready && window.__storageGets >= 1)
+  await page.waitForFunction(() => window.__ready && window.__storageGets >= 2)
   await page.waitForTimeout(30)
   const errors = await page.evaluate(() => window.__errors)
   assert.deepEqual(errors, [])
@@ -790,3 +792,81 @@ test('six type sizes, no more', async () => {
   await page.close()
   assert.deepEqual([...sizes].map(parseFloat).sort((a, b) => a - b), [20, 22, 24, 36, 48, 88])
 })
+
+const LANGS = ['es', 'en', 'fr', 'de', 'it']
+
+test('every language fits: each state, the who-serves screen and every panel view', async () => {
+  const FULL_BLEED = /^outside the capsule: (board|board board-ask|half-them|half-us|ask-them|ask-us) at/
+  fs.mkdirSync(path.join(SHOTS, 'lang'), { recursive: true })
+  const all = [] // every issue in every language, to see them all at once
+  for (const lang of LANGS) {
+    const states = { ...STATES, '00-ask': ['', 'adv', null] }
+    for (const [name, [h, d = 'adv', f = 'u']] of Object.entries(states)) {
+      const page = await open(h, d, f, lang)
+      const issues = (await page.evaluate(() => window.harness.layoutIssues())).filter((i) => !FULL_BLEED.test(i))
+      for (const i of issues) all.push(lang + ' ' + name + ': ' + i)
+      await shot(page, 'lang/' + lang + '-' + name)
+      await page.close()
+    }
+    // Both serve labels, an empty history and a full one.
+    for (const [first, seed] of [['u', false], ['t', true]]) {
+      const page = await open(STATES['02-normal'][0], 'gold', first, lang)
+      if (seed) await seedLog(page)
+      for (const v of ['panel', 'more', 'history', 'confirm']) {
+        await view(page, v)
+        const r = await panelLayout(page)
+        for (const i of r.issues) all.push(lang + ' ' + v + ': ' + i)
+        await shot(page, 'lang/' + lang + '-' + v + (seed ? '-2' : ''))
+      }
+      await page.close()
+    }
+  }
+  assert.deepEqual(all, [])
+})
+
+test('more cycles the language, and every text follows', async () => {
+  const page = await open(set('u', 't', 6, 4) + 'uuuttt' + 'u', 'adv')
+  await view(page, 'more')
+  const state = () => page.evaluate(() => ({
+    value: window.harness.text('m-lang-value'),
+    label: window.harness.text('m-lang-label'),
+    title: window.harness.text('title'),
+    deuce: window.harness.text('m-deuce-value'),
+    adv: window.harness.text('label-us'),
+    saved: JSON.parse(localStorage.getItem('st:padel-band-prefs') || '{}').lang
+  }))
+  assert.deepEqual(await state(), { value: 'Español', label: 'Idioma', title: 'Más', deuce: 'Ventaja', adv: 'VENTAJA', saved: undefined })
+  const want = [
+    ['English', 'Language', 'More', 'Advantage', 'ADV', 'en'],
+    ['Français', 'Langue', 'Plus', 'Avantage', 'AVANTAGE', 'fr'],
+    ['Deutsch', 'Sprache', 'Mehr', 'Vorteil', 'VORTEIL', 'de'],
+    ['Italiano', 'Lingua', 'Altro', 'Vantaggi', 'VANT.', 'it'],
+    ['Español', 'Idioma', 'Más', 'Ventaja', 'VENTAJA', 'es']
+  ]
+  for (const [value, label, title, deuce, adv, saved] of want) {
+    await page.click('#m-lang')
+    await page.waitForTimeout(20)
+    assert.deepEqual(await state(), { value, label, title, deuce, adv, saved })
+  }
+  await page.close()
+})
+
+test('the language survives a restart, and the screen toggle keeps it', async () => {
+  const page = await open('', 'adv', null, 'de')
+  assert.equal(await page.evaluate(() => window.harness.text('ask-title')), 'Wer schlägt auf?')
+  await view(page, 'more')
+  await page.click('#m-screen')
+  await page.waitForTimeout(20)
+  const prefs = () => page.evaluate(() => JSON.parse(localStorage.getItem('st:padel-band-prefs')))
+  assert.deepEqual(await prefs(), { keepOn: false, lang: 'de' })
+  await page.click('#m-lang')
+  await page.waitForTimeout(20)
+  assert.deepEqual(await prefs(), { keepOn: false, lang: 'it' }, 'the language keeps keep-screen-on')
+  await page.reload()
+  await page.waitForFunction(() => window.__ready && window.__storageGets >= 2)
+  await page.waitForTimeout(30)
+  assert.equal(await page.evaluate(() => window.harness.text('ask-title')), 'Chi serve?')
+  assert.equal(await page.evaluate(() => window.__keepScreenOn), false)
+  await page.close()
+})
+

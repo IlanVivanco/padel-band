@@ -8,6 +8,24 @@ Versions marked *(released)* have a `.rpk` on
 [GitHub Releases](https://github.com/IlanVivanco/padel-band/releases). The
 others were test builds on the band.
 
+## [0.7.0] — 2026-11-26
+
+### Added
+- **Five languages:** Spanish, English, French, German and Italian. *Más*
+  has a new *Idioma* row: a tap moves to the next language, and each one is
+  shown by its own name (*Español*, *English*, *Français*, *Deutsch*,
+  *Italiano*), so it's easy to find from any other. The choice is saved
+  with the other settings. Spanish stays the default, so nothing changes
+  after an update.
+- The labels under the big points have room for about 8 capital letters
+  (the capsule curves in there), so some languages use a short form:
+  *ADV* in English, *VANT.* in Italian, and one word for either team's win
+  in French, German and Italian (the half's colour says who won).
+
+### Fixed
+- Nothing is drawn until the settings have loaded too, so the language
+  can't flash in Spanish on launch.
+
 ## [0.6.0] — 2026-11-26
 
 ### Added

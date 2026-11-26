@@ -13,16 +13,16 @@
     <div class="score" if="{{ ready && ask }}">
       <div id="ask-them" class="half half-them-hi" onclick="chooseThem"
            ontouchstart="start" ontouchmove="move" ontouchend="endAsk" ontouchcancel="cancel" onlongpress="openPanel">
-        <text class="ask-text ask-them">SACAN</text>
+        <text id="ask-them-text" class="ask-text ask-them">{{ tx.askThem }}</text>
       </div>
       <!-- The ball heads the question; the answers are text only. -->
       <div class="board board-ask">
         <image class="ask-ball" src="/common/ball-48.png"></image>
-        <text class="ask-title">¿Quién saca?</text>
+        <text id="ask-title" class="ask-title">{{ tx.askTitle }}</text>
       </div>
       <div id="ask-us" class="half half-us-hi" onclick="chooseUs"
            ontouchstart="start" ontouchmove="move" ontouchend="endAsk" ontouchcancel="cancel" onlongpress="openPanel">
-        <text class="ask-text ask-us">SACAMOS</text>
+        <text id="ask-us-text" class="ask-text ask-us">{{ tx.askUs }}</text>
       </div>
     </div>
 
@@ -108,36 +108,43 @@
              colour with a white icon, the label in that colour. -->
         <div id="p-serve" class="item" onclick="toggleServer">
           <div id="p-serve-circle" class="circle {{ serverUs ? 'circle-us' : 'circle-them' }}"><image class="ic" src="/common/icon-serve.png"></image></div>
-          <text id="p-serve-label" class="item-label {{ serverUs ? 'lbl-us' : 'lbl-them' }}">{{ serverUs ? 'Sacamos' : 'Sacan' }}</text>
+          <text id="p-serve-label" class="item-label {{ serverUs ? 'lbl-us' : 'lbl-them' }}">{{ serverUs ? tx.serveUs : tx.serveThem }}</text>
         </div>
         <div id="p-new" class="item item-next" onclick="askReset">
           <div class="circle circle-new"><image class="ic" src="/common/icon-plus.png"></image></div>
-          <text class="item-label lbl-new">Nuevo</text>
+          <text id="p-new-label" class="item-label lbl-new">{{ tx.newMatch }}</text>
         </div>
         <div id="p-history" class="item item-next" onclick="openHistory">
           <div class="circle"><image class="ic" src="/common/icon-history.png"></image></div>
-          <text class="item-label">Historial</text>
+          <text id="p-history-label" class="item-label">{{ tx.history }}</text>
         </div>
         <div id="p-more" class="item item-next" onclick="openMore">
           <div class="circle"><image class="ic" src="/common/icon-more.png"></image></div>
-          <text class="item-label">Más</text>
+          <text id="p-more-label" class="item-label">{{ tx.more }}</text>
         </div>
       </scroll>
 
       <!-- More: the settings that outlive a match. Deuce rule: a Wear button
            with a secondary label (the current rule); a tap moves to the
-           next one. Keep screen on: a Wear switch button. -->
+           next one. Keep screen on: a Wear switch button. Language: like
+           the deuce rule, each language named in itself. -->
       <scroll id="more" class="list" scroll-y="true" if="{{ view === 'more' }}" onscroll="scrolled">
         <div id="m-deuce" class="sw" onclick="nextDeuce">
           <div class="sw-text">
-            <text class="sw-label">Iguales</text>
+            <text id="m-deuce-label" class="sw-label">{{ tx.deuce }}</text>
             <text id="m-deuce-value" class="sw-sub">{{ deuceName }}</text>
           </div>
         </div>
         <div id="m-screen" class="sw sw-next {{ keepOn ? 'sw-on' : '' }}" onclick="toggleScreen">
-          <div class="sw-text"><text class="sw-label">Pantalla</text><text class="sw-label">fija</text></div>
+          <div class="sw-text"><text id="m-screen-1" class="sw-label">{{ tx.screen1 }}</text><text id="m-screen-2" class="sw-label">{{ tx.screen2 }}</text></div>
           <div id="m-screen-tg" class="tg {{ keepOn ? 'tg-on' : '' }}">
             <div class="knob {{ keepOn ? 'knob-on' : '' }}"><image class="tick" src="/common/icon-tick.png" if="{{ keepOn }}"></image></div>
+          </div>
+        </div>
+        <div id="m-lang" class="sw sw-next" onclick="nextLanguage">
+          <div class="sw-text">
+            <text id="m-lang-label" class="sw-label">{{ tx.language }}</text>
+            <text id="m-lang-value" class="sw-sub">{{ langName }}</text>
           </div>
         </div>
       </scroll>
@@ -146,7 +153,7 @@
            the scoreboard (a column per set, their games over ours; the
            set's winner bold, the loser dimmed). -->
       <scroll id="history" class="list" scroll-y="true" if="{{ view === 'history' }}" onscroll="scrolled">
-        <text id="h-empty" class="h-empty" if="{{ !hist.length }}">Sin partidos todavía</text>
+        <text id="h-empty" class="h-empty" if="{{ !hist.length }}">{{ tx.histEmpty }}</text>
         <div class="card" for="{{ hist }}">
           <text class="h-date">{{ $item.date }}</text>
           <!-- The set in play sits on a grey tile, as on the scoreboard. -->
@@ -170,7 +177,7 @@
       <!-- New match: a Wear OS alert dialog. The title asks; below it,
            one filled confirm button, and under that a bare cross to cancel. -->
       <div id="confirm" class="dialog" if="{{ view === 'confirm' }}">
-        <text class="d-title">¿Empezar otro?</text>
+        <text id="c-title" class="d-title">{{ tx.confirm }}</text>
         <div id="c-yes" class="d-yes" onclick="resetMatch"><image class="d-ic" src="/common/icon-yes.png"></image></div>
         <!-- Cancel: a bare cross under the button, like a text button. -->
         <div id="c-no" class="d-no" onclick="cancelReset"><image class="d-x" src="/common/icon-close.png"></image></div>
@@ -208,6 +215,7 @@ import {
   decidingPoint, setFirst, setId, serve, pointLabels, serialize, deserialize
 } from '../../common/padel'
 import { record, serializeLog, deserializeLog, clockText, dateText } from '../../common/log'
+import { DEFAULT_LANG, LANG_NAMES, langOf, strings, nextLang } from '../../common/i18n'
 
 var STORE_KEY = 'padel-band-state'
 var PREFS_KEY = 'padel-band-prefs'
@@ -221,15 +229,16 @@ var CLICK_GUARD_MS = 400 // a click this soon after a swipe is part of it
 var CLOCK_MS = 5000
 var HIDE_MS = 200 // the sheet goes a little before its slide ends: with no
 //                   fill mode, the last frame would snap back into view
-var TITLES = { panel: 'Pádel', more: 'Más', history: 'Historial', confirm: '' }
-var DEUCE_NAMES = { adv: 'Ventaja', gold: 'Punto de oro', star: 'Star Point' }
+// Each view's title, as a key into the language's strings.
+var TITLES = { panel: 'app', more: 'more', history: 'history' }
+var DEUCE_KEYS = { adv: 'deuceAdv', gold: 'deuceGold', star: 'deuceStar' }
 // Content height of each scrolling list, for the scroll indicator: the
 // list's top padding, its items and gaps, and the bottom padding that lets
 // the last item clear the handle (see .items, .item, .sw, .card).
 var LIST_PAD = 92 + 72
 var LIST_H = {
   panel: function () { return LIST_PAD + 4 * 141 + 3 * 18 },
-  more: function () { return LIST_PAD + 2 * 84 + 6 },
+  more: function () { return LIST_PAD + 3 * 84 + 2 * 6 },
   history: function (n) { return LIST_PAD + Math.max(1, n) * 162 }
 }
 
@@ -287,7 +296,10 @@ export default {
     hist: [],
     cueCls: '',
     cueAt: 'tl', // the cue's corner, to place its layers
-    deuceName: 'Ventaja',
+    tx: strings(DEFAULT_LANG), // the language's strings, replaced whole
+    lang: DEFAULT_LANG,
+    langName: LANG_NAMES[DEFAULT_LANG],
+    deuceName: strings(DEFAULT_LANG).deuceAdv,
     keepOn: true,
     themPts: '0',
     usPts: '0',
@@ -315,6 +327,12 @@ export default {
     match = newMatch(false)
     log = []
     this.render()
+    // Nothing shows until both the match and the prefs are in, so neither
+    // a match in progress nor the language flashes its default first.
+    var pending = 2
+    var loaded = function () {
+      if (--pending === 0) page.ready = true
+    }
     try {
       storage.get({
         key: STORE_KEY,
@@ -322,11 +340,9 @@ export default {
         success: function (data) {
           match = deserialize(data)
           page.render()
-          page.ready = true
+          loaded()
         },
-        fail: function () {
-          page.ready = true
-        }
+        fail: loaded
       })
       storage.get({
         key: PREFS_KEY,
@@ -335,9 +351,12 @@ export default {
           try {
             var o = JSON.parse(data)
             if (o && typeof o.keepOn === 'boolean') page.keepOn = o.keepOn
+            if (o) page.setLang(o.lang)
           } catch (e) {}
           page.applyScreen()
-        }
+          loaded()
+        },
+        fail: loaded
       })
       storage.get({
         key: LOG_KEY,
@@ -575,7 +594,7 @@ export default {
   },
 
   show(v) {
-    this.title = TITLES[v] || ''
+    this.title = this.titleOf(v)
     this.view = v
     this.updateBar(0)
   },
@@ -638,7 +657,14 @@ export default {
     if (!this.clickOk()) return
     this.keepOn = !this.keepOn
     this.applyScreen()
-    try { storage.set({ key: PREFS_KEY, value: JSON.stringify({ keepOn: this.keepOn }) }) } catch (e) {}
+    this.savePrefs()
+  },
+
+  // Español, English, Français, Deutsch, Italiano, and round again.
+  nextLanguage() {
+    if (!this.clickOk()) return
+    this.setLang(nextLang(this.lang))
+    this.savePrefs()
   },
 
   exitApp() {
@@ -652,6 +678,23 @@ export default {
 
   applyScreen() {
     this.setScreen(this.keepOn)
+  },
+
+  // Binds the language's strings and redraws what's built from them.
+  setLang(l) {
+    this.lang = langOf(l)
+    this.tx = strings(this.lang)
+    this.langName = LANG_NAMES[this.lang]
+    this.title = this.titleOf(this.view)
+    this.render()
+  },
+
+  titleOf(v) {
+    return TITLES[v] ? this.tx[TITLES[v]] : ''
+  },
+
+  savePrefs() {
+    try { storage.set({ key: PREFS_KEY, value: JSON.stringify({ keepOn: this.keepOn, lang: this.lang }) }) } catch (e) {}
   },
 
   setScreen(on) {
@@ -671,7 +714,8 @@ export default {
     var s = score(match)
     var l = pointLabels(s)
     var w = s.winner
-    this.deuceName = DEUCE_NAMES[match.deuce]
+    var tx = this.tx
+    this.deuceName = tx[DEUCE_KEYS[match.deuce]]
     this.ask = !match.first
     var sv = serve(match, s)
     this.serverUs = sv ? sv.server === US : match.first !== THEM
@@ -688,19 +732,19 @@ export default {
       // WIN in the winner's own colour, like their points.
       themCls = 'pts-them'
       usCls = 'pts-us'
-      themLabel = w === THEM ? 'GANAN' : ''
-      usLabel = w === US ? 'GANAMOS' : ''
+      themLabel = w === THEM ? tx.wonThem : ''
+      usLabel = w === US ? tx.wonUs : ''
       themHi = w === THEM
       usHi = w === US
     } else if (adv === US) {
       usCls = 'pts-us'
       themCls = 'pts-them-dim'
-      usLabel = 'VENTAJA'
+      usLabel = tx.adv
       usHi = true
     } else if (adv === THEM) {
       themCls = 'pts-them'
       usCls = 'pts-us-dim'
-      themLabel = 'VENTAJA'
+      themLabel = tx.adv
       themHi = true
     }
     this.themPts = themPts
@@ -772,8 +816,8 @@ export default {
 
     // Status pill: only when something special is going on.
     var pill = ''
-    if (!w && s.tiebreak) pill = 'TIE-BREAK'
-    else if (decidingPoint(match, s)) pill = match.deuce === STAR ? 'STAR POINT' : 'PUNTO DE ORO'
+    if (!w && s.tiebreak) pill = tx.tiebreak
+    else if (decidingPoint(match, s)) pill = match.deuce === STAR ? tx.star : tx.golden
     this.pill = pill
   }
 }
