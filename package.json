@@ -1,16 +1,21 @@
 {
   "name": "padel-band",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Padel score counter for the Xiaomi Smart Band 10 (Vela JS quick app)",
   "scripts": {
     "build": "aiot build --enable-jsc",
-    "test": "node --test test/padel.test.mjs",
+    "test": "node --test test/padel.test.mjs test/log.test.mjs",
     "test:ui": "aiot build && node --test test/ui.test.mjs",
-    "emulator": "node tools/serve.mjs"
+    "test:all": "npm test && npm run test:ui",
+    "sim": "aiot build && node tools/serve.mjs",
+    "emu:setup": "aiot initEmulatorEnv && node tools/emu-setup.mjs",
+    "emu": "aiot start",
+    "emu:install": "npm run build && node tools/emu.mjs install"
   },
   "devDependencies": {
     "@aiot-toolkit/jsc": "^1.0.10",
-    "aiot-toolkit": "2.0.5"
+    "aiot-toolkit": "2.0.5",
+    "playwright": "^1.65.1"
   }
 }

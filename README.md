@@ -28,30 +28,35 @@ screen). The app's on-screen labels are in Spanish.</sub>
 - **Clear status cues.**
   - *Advantage:* the leading half lights up and shows a bold **AD** with
     *VENTAJA*, while the rival's 40 dims.
-  - *Tiebreak / golden point:* a white pill (`TIE-BREAK`, `PUNTO DE ORO`)
-    appears just below the scoreboard without moving anything else.
+  - *Tiebreak / deciding point:* a white pill (`TIE-BREAK`, `PUNTO DE ORO`,
+    `STAR POINT`) appears just below the scoreboard without moving anything
+    else.
   - *Match over:* the winner's half lights up with **WIN** in its color and *GANAMOS*
     or *GANAN*, and the other half shows a dimmed bar.
-- **Serve indicator.** A grey arc on one corner of the current-set tile
-  shows who serves next and from which side. The tile's corners are the
-  court seen from your side: top corners are the opponents, bottom corners
-  are your team. So the marked corner is where the server stands, and you
-  can point at it: "you serve from there now". Their right is the screen's
+- **Serve indicator.** A bracket in the serving team's color on one corner of the current-set tile
+  shows who serves and from which side. The tile's corners are the court
+  seen from your side: top corners are the opponents, bottom corners are
+  your team. So the marked corner is where the server stands, and you can
+  point at it: "you serve from there now". Their right is the screen's
   left, because they face you.
 - **Who serves first.** Each new match asks *¿Quién saca?*: tap the team
   that serves first. Everything else follows from the rules: teams
   alternate games (across sets too), each game starts from the right, and
   the side switches every point. In a tiebreak the team whose turn it is
   serves one point, then two each.
-- **Full padel rules.** Points go 0 / 15 / 30 / 40 with deuce and advantage, or
-  an optional **golden point** (*punto de oro*). Sets go to 6, won by 2, with a
-  **tiebreak** to 7 (won by 2) at 6-6. Matches are best of 3.
+- **Full padel rules.** Points go 0 / 15 / 30 / 40. At deuce (*iguales*),
+  pick one of three rules: **advantage**, **golden point** (*punto de oro*:
+  the next point wins) or **Star Point** (FIP, 2026: advantage at the first
+  two deuces, and the third is decided by one point). Sets go to 6, won by
+  2, with a **tiebreak** to 7 (won by 2) at 6-6. Matches are best of 3.
 - **Haptics.** You get a short buzz for each point and a long buzz when a point
   wins a game, so you can feel the score without looking.
 - **Keep screen on.** This is optional. The setting is released when you leave
   the app.
 - **Nothing is lost.** The match is saved after every point, so it survives if
   the band closes the app.
+- **Match history.** The last 10 matches are kept, the one in play included,
+  with the date and the games of each set.
 
 ## How to use it
 
@@ -59,25 +64,37 @@ screen). The app's on-screen labels are in Spanish.</sub>
 | --- | --- | --- |
 | **Tap** | +1 point to them | +1 point to us |
 | **Swipe left** | −1 point to them | −1 point to us |
-| **Long-press** (anywhere) | Opens the menu | Opens the menu |
+| **Swipe down** (or long-press) | Opens the panel | Opens the panel |
+| **Swipe right** | Exits the app | Exits the app |
 
 **Swipe left** removes that side's most recent point. If that point was the
-last one played, it's fully undone, even if it closed a game or a set.
+last one played, it's fully undone, even if it closed a game, a set or the
+match. If that side has no point to remove in the current game (right after
+a game or set closes, or once the match is won), it undoes the last point
+played instead, whoever won it. So swiping on either half keeps rewinding,
+all the way back to 0-0.
 
-**Menu:**
+**Panel** (swipe down to open it). It slides down over the score and back
+up when it closes. It follows Wear OS's Material 3 design (sizes, spacing,
+toggles, dialogs), scaled to the band. On top, a header with the time and
+the view's title. Below, round buttons in one column that scroll freely;
+the next one peeks at the bottom edge. Swipe up from the handle at the
+bottom edge, or right, closes it. It opens from the who-serves screen too.
 
-- *Sacamos / Sacan*: a toggle for which team served first, if it was set
-  wrong. The serve indicator updates for the whole match.
-- *Punto de oro*: turn the golden point on or off.
-- *Pantalla fija*: keep the screen on while the app is open.
-- *Nuevo partido*: start a new match. It asks to confirm first, then who
-  serves.
-- *Salir*: exit the app.
-- **×** on top goes back to the score.
+- *Sacamos* / *Sacan*: who serves now, in the team's colour. Tap
+  it to switch; the serve indicator updates for the whole match.
+- *Nuevo*: start a new match. It asks *¿Empezar otro?* (cancel or confirm),
+  then who serves. The current match stays in the history.
+- *Historial*: the last 10 matches, newest first, each a small copy of the
+  scoreboard with its date; the set in play sits on a grey tile, as on the
+  scoreboard. Scrolls like the panel.
+- *Más*: the settings that outlive a match. *Iguales* shows the deuce rule
+  and a tap moves to the next one (*Ventaja*, *Punto de oro*, *Star
+  Point*). *Pantalla fija* keeps the screen on while the app is open
+  (released when you leave it).
 
-> A right swipe, the band's usual "back" gesture, **does nothing** here, so a
-> stray swipe mid-match can't close the scoreboard. Use **Salir** in the menu
-> to exit.
+A right swipe in *Más*, *Historial* or the new-match question goes back to
+the panel; a swipe up from the handle closes them.
 
 ## Screens
 
@@ -86,14 +103,18 @@ last one played, it's fully undone, even if it closed a game or a set.
 | <img src="docs/screens/00-ask.png" width="150"> | <img src="docs/screens/02-normal.png" width="150"> | <img src="docs/screens/03-ad-us.png" width="150"> |
 | **Their advantage** | **Golden point** | **Tiebreak** |
 | <img src="docs/screens/04-ad-them.png" width="150"> | <img src="docs/screens/05-golden.png" width="150"> | <img src="docs/screens/06-tiebreak.png" width="150"> |
-| **We won** | **They won** | **Menu** (long-press) |
-| <img src="docs/screens/07-win-us.png" width="150"> | <img src="docs/screens/08-win-them.png" width="150"> | <img src="docs/screens/09-menu.png" width="150"> |
+| **We won** | **They won** | **Panel** (swipe down) |
+| <img src="docs/screens/07-win-us.png" width="150"> | <img src="docs/screens/08-win-them.png" width="150"> | <img src="docs/screens/09-panel.png" width="150"> |
+| **Panel, scrolled** | **Más** | **Historial** |
+| <img src="docs/screens/09-panel-2.png" width="150"> | <img src="docs/screens/10-more.png" width="150"> | <img src="docs/screens/11-history.png" width="150"> |
+| **New match?** | | |
+| <img src="docs/screens/12-confirm.png" width="150"> | | |
 
 How to read the scoreboard in the middle: each column is a set, with their
 games (orange) on top and ours (blue) below. In *Mid-match*, we won the first
 set 6-4 (bold and underlined) and trail 2-3 in the second (grey tile). The
-grey arc on the tile's top-right corner says they serve next, from their
-left.
+orange bracket on the tile's top-right corner says they serve next, from
+their left.
 
 ## Download
 
@@ -200,24 +221,50 @@ You need Node.js (tested with v22).
 
 ```sh
 npm install
+npx playwright install chromium   # once, for the UI tests and the simulator checks
 npm test          # scoring logic unit tests (plain Node)
-npm run test:ui   # layout + gesture tests on the compiled page (needs Playwright + Chromium)
-npm run emulator  # dev emulator at http://localhost:5173/tools/emulator/
+npm run test:ui   # layout + gesture tests on the compiled page in headless Chromium
+npm run test:all  # both
+npm run sim       # the compiled app in your browser, http://localhost:5173/test/harness/index.html?sim
 npm run build     # -> dist/com.ilanvivanco.padelband.debug.<version>.rpk
 ```
 
-`npm run emulator` serves an interactive emulator of the band screen in your
-browser. It runs on the app's own scoring and serve logic
-(`src/common/padel.js`) and supports taps, swipes, long-press, the menu and
-the who-serves screen. A side panel shows who serves and from where, jumps to
-states (deuce, tiebreak, three sets…) and lets you try the serve cue's place,
-stroke, length and color. It's a quick way to test rules and design ideas;
-the UI tests remain the reference for exact layout.
+### Xiaomi's emulator
+
+Chromium only approximates the band's renderer. Xiaomi's AIoT toolkit
+ships the real one: a Vela emulator (QEMU) with a Band 10 skin, 212 × 520.
+Check anything that depends on the renderer there before sideloading:
+scrolling, animations, colours, fonts.
+
+```sh
+npm run emu:setup    # once: downloads the emulator (~1.8 GB, ~/.vela) and creates Vela_Band10
+npm run emu          # builds, starts the emulator and opens the app (answer "y")
+npm run emu:install  # after a change: rebuild and reinstall into the running emulator
+```
+
+`tools/emu.mjs` drives the running emulator from the command line, through
+its gRPC controller: `shot out.png`, `tap X Y`, `hold X Y`,
+`swipe X1 Y1 X2 Y2 [ms]`, and `run "…; …"` to chain them, with
+`frames DIR MS` recording every frame (for animations). They work without
+the emulator's window.
+
+In this emulator image the system covers the bottom ~55 px of every
+screen (the watch face too), and touches there go to the system, so the
+panel's handle can't be reached in it. Check that one on the band.
+
+`npm run sim` builds the app and runs the compiled page in your browser,
+through the same harness as the UI tests, plus what the band's system does
+around it: hold for a long-press, drag right for "back" (from the score it
+closes the app), buttons to jump to states (deuce, tiebreak, three
+sets…) and one to clear the saved state. It's the closest
+thing to the band without one. It does a plain-JS build, so run
+`npm run build` before sideloading.
 
 `npm run test:ui` builds the plain-JS bundle and drives it in headless
 Chromium through `test/harness/` (adapted from Calc+). It checks that every
-state fits inside the capsule, that the points, scoreboard and pill are
-centered, and that taps and swipes score on the right side. It also saves
+state and panel view fits inside the capsule, that the points, scoreboard
+and pill are centered, that the serve ball clears them, and that taps and
+swipes score, rewind and open or close the panel. It also saves
 screenshots to `test/screens/`. Run `npm run build` afterwards, because the
 `.rpk` must be the JSC build.
 
@@ -239,16 +286,21 @@ saved match is lost.
 src/
   manifest.json          app id, version, features (storage, vibrator, brightness, app)
   app.ux                 app entry
-  pages/index/index.ux   screen layout, gestures, menu
+  pages/index/index.ux   screen layout, gestures, panel
   common/padel.js        pure scoring and serve logic (no system modules)
-  common/serve-*.png     serve-cue arcs, one per tile corner (12 × 12)
+  common/log.js          pure match-history logic
+  common/ball-*.png      padel ball (who-serves screen, panel)
+  common/icon-*.png      panel icons (all drawn by tools/icons.py)
   common/logo.png        app icon (120 × 120)
 test/padel.test.mjs      scoring tests (node --test)
+test/log.test.mjs        history tests
 test/ui.test.mjs         layout and gesture tests on the compiled page
-test/harness/            minimal Vela runtime for Chromium (from Calc+)
-tools/emulator/          dev emulator (npm run emulator)
-tools/serve.mjs          static server for the emulator
+test/harness/            minimal Vela runtime for Chromium (from Calc+), also the simulator
+tools/serve.mjs          static server for the simulator (npm run sim)
+tools/emu-setup.mjs      creates the Band 10 virtual device (npm run emu:setup)
+tools/emu.mjs            screenshots, touches and installs on the running emulator
 tools/docs_images.py     builds the README images from the test screenshots
+tools/icons.py           draws the panel icons and the serve ball
 docs/                    README images and app icon
 CHANGELOG.md             version history
 ```
@@ -258,14 +310,22 @@ that served first, and the score and serve are always derived by replaying
 that sequence. Undo and subtract are just edits to the sequence, so neither
 the score nor the serve can drift out of sync.
 
-Vela supports neither per-side borders nor per-corner radii, so the serve arc
-is a small image placed over the current-set tile's known position.
+Vela has no icon font or SVG, so icons are PNGs drawn at their exact size.
+It has no per-side borders or per-corner radii either, so the serve bracket
+is one corner of a larger rounded frame, the rest clipped away
+(`overflow: hidden`), placed over the current-set tile's known position.
+And when a class is removed, the band keeps the properties it set unless
+the element's base class sets them too, so every property a state class
+toggles has its default in the base class. The simulator mimics this.
+The band also caches images by path across installs: a redrawn icon needs
+a new file name, or the old one keeps showing.
 
 ## Roadmap ideas
 
-- Which player of the team serves (partners alternate)
 - Configurable match format (single set, super tiebreak instead of a third set)
-- Match summary and history
+- Which player of each team serves (the logic is in `serve().players`; it
+  needs a display that reads at a glance)
+- Export the history (QR code on the band, or through a phone app)
 
 ## Credits
 
