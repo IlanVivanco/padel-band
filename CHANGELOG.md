@@ -8,6 +8,78 @@ Versions marked *(released)* have a `.rpk` on
 [GitHub Releases](https://github.com/IlanVivanco/padel-band/releases). The
 others were test builds on the band.
 
+## [0.6.0] — 2026-11-26
+
+### Added
+- **Pull-down panel**, following Wear OS's Material 3 design scaled to the
+  band (1 dp = 1.5 px): swipe down on the score to open it (long-press
+  still works). It slides down over the score and back up when it closes.
+  A header shows the time and the view's title. Below it, round 108px
+  buttons (Wear's extra-large icon button) with labels, in one column,
+  with the next one peeking at the bottom edge: *Sacamos* / *Sacan*,
+  *Nuevo* (yellow), *Historial* and *Más*. The list scrolls freely (the
+  band's native scroll), with a scroll indicator on the right edge. To
+  close it, swipe up from the handle at the bottom edge (like the band's
+  notification shade) or right. It opens from the who-serves screen too.
+- **Match history.** The last 10 matches are kept, the one in play
+  included. *Historial* shows each as a card with its date and a small copy
+  of the scoreboard; the set in play sits on the same grey tile. A new
+  match no longer erases the previous one.
+- **Star Point.** *Más* → *Iguales* picks the deuce rule: *Ventaja*
+  (advantage), *Punto de oro* (golden point) or *Star Point* (FIP, 2026:
+  advantage at the first two deuces, one deciding point at the third,
+  marked with a `STAR POINT` pill). A tap moves to the next rule. Old saves
+  keep their golden-point setting.
+- **Swipe right exits** the app from the score. In the panel it goes back
+  one level.
+- `npm run sim`: the compiled app in the browser, with long-press, the
+  "back" swipe, states to jump to and a reset. It replaces the old
+  hand-written emulator.
+- **Xiaomi's emulator** for checking changes on the band's real renderer:
+  `npm run emu:setup`, `npm run emu`, `npm run emu:install`, and
+  `tools/emu.mjs` for screenshots, touches and frame recording.
+- `npm run test:all`; Playwright is now a dev dependency.
+
+### Changed
+- **Bigger scoreboard:** the middle strip grew from 120 to 150px and its
+  numbers from 38 to 48px.
+- **The serve cue stands out:** the grey 12px arc on the tile corner is now
+  a bold bracket (24px, 6px stroke) in the serving team's colour, that
+  turns the corner with the tile's rounded edge. It's drawn, not an image
+  (the image was seen grey on the band).
+- *Sacamos* / *Sacan* names **who serves now** (it used to be who served
+  first): a white icon on the team's colour, the label in
+  that colour; tapping it switches the server.
+- *Punto de oro* (now *Iguales*) and *Pantalla fija* moved to *Más*.
+  *Salir* is gone (swipe right instead).
+- **New match asks** *¿Empezar otro?* as a Wear alert dialog: one green
+  confirm button, and a bare cross under it to cancel. No extra text.
+- The who-serves screen puts the padel ball over the question and leaves
+  the answers as text; the *Tocá un lado* hint is gone.
+- **Panel spacing follows one rule:** 6px (4dp) from a button to its own
+  label, 18px (12dp) between items, so each label sits nearer its button
+  than the next one.
+- **New palette:** light blue `#8ecae6` for us (teal `#219ebc` and navy
+  `#023047` for our buttons and tints), orange `#fb8500` for them, yellow
+  `#ffb703` for *Nuevo*. The tones in between are interpolated.
+- **Six type sizes**, from Wear's scale: 88 and 48 for the score's
+  numerals, 36, 24, 22 and 20 for everything else. *VENTAJA* and the
+  status pill went from 13 and 12 to 20.
+
+### Fixed
+- **Swipe left rewinds the whole match again.** When the swiped side had no
+  point to remove in the current game (right after a game or set closed, or
+  once the match was won), the swipe did nothing. Now it undoes the last
+  point played, so either half rewinds back to 0-0.
+- A tap that changes the screen can't also press a button on the next one.
+- **No flash of the who-serves screen on launch** while the saved match
+  loads.
+- **Undoing the point that closed a set clears its marks.** The winner's
+  bar and bold number stayed (and the set kept the grey tile once it
+  ended): the band keeps what a removed class set unless the base style
+  sets it too. The browser simulator now behaves the same way, so the
+  tests catch it.
+
 ## [0.5.0] — 2026-11-08
 
 ### Added

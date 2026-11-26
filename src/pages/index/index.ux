@@ -1,31 +1,41 @@
 <template>
   <div class="page">
-    <!-- Score view. Top half is them (orange), bottom half is us (blue); the
-         same colours run through the scoreboard, so no labels are needed.
-         Tap a half: point for that side. Swipe left: take one away.
-         Long-press: menu. -->
-    <!-- Who serves first: shown for a new match. Tap a half to choose. -->
-    <div class="score" if="{{ !menu && ask }}">
-      <div id="ask-them" class="half half-them-hi" onclick="chooseThem">
-        <div class="ask-ball"></div>
+    <!-- Views: score (with the who-serves screen for a new match), and the
+         pull-down panel with its sub-views: more, history, confirm. -->
+
+    <!-- The score (with the who-serves screen for a new match) is always
+         drawn; the pull-down panel slides over it. -->
+
+    <!-- Who serves first: shown for a new match. Tap a half to choose;
+         swipe down (or long-press) opens the panel, as on the score. -->
+    <!-- Nothing is drawn until the saved match has loaded, so a match in
+         progress doesn't flash the who-serves screen on launch. -->
+    <div class="score" if="{{ ready && ask }}">
+      <div id="ask-them" class="half half-them-hi" onclick="chooseThem"
+           ontouchstart="start" ontouchmove="move" ontouchend="endAsk" ontouchcancel="cancel" onlongpress="openPanel">
         <text class="ask-text ask-them">SACAN</text>
       </div>
+      <!-- The ball heads the question; the answers are text only. -->
       <div class="board board-ask">
+        <image class="ask-ball" src="/common/ball-48.png"></image>
         <text class="ask-title">¿Quién saca?</text>
-        <text class="ask-hint">Tocá un lado</text>
       </div>
-      <div id="ask-us" class="half half-us-hi" onclick="chooseUs">
-        <div class="ask-ball"></div>
+      <div id="ask-us" class="half half-us-hi" onclick="chooseUs"
+           ontouchstart="start" ontouchmove="move" ontouchend="endAsk" ontouchcancel="cancel" onlongpress="openPanel">
         <text class="ask-text ask-us">SACAMOS</text>
       </div>
     </div>
 
-    <div class="score" if="{{ !menu && !ask }}">
+    <!-- Score. Top half is them (orange), bottom half is us (blue); the same
+         colours run through the scoreboard, so no labels are needed.
+         Tap a half: point for that side. Swipe left: take one away.
+         Swipe down (or long-press): panel. Swipe right: exit. -->
+    <div class="score" if="{{ ready && !ask }}">
       <!-- Each half is a fixed three-slot stack (label / points / label), so
            the points stay centred whether or not a label is showing. The
            label sits on the outer side: above for them, below for us. -->
-      <div id="half-them" class="half {{ themBg }}"
-           ontouchstart="startThem" ontouchmove="move" ontouchend="endThem" ontouchcancel="cancel" onlongpress="openMenu">
+      <div id="half-them" class="half half-top {{ themBg }}"
+           ontouchstart="start" ontouchmove="move" ontouchend="endThem" ontouchcancel="cancel" onlongpress="openPanel">
         <text id="label-them" class="label label-them">{{ themLabel }}</text>
         <text id="pts-them" class="points {{ themPtsCls }}" if="{{ !themLost }}">{{ themPts }}</text>
         <div id="lost-them" class="lost" if="{{ themLost }}"><div class="lost-bar"></div></div>
@@ -41,75 +51,149 @@
         <div id="col0" class="col {{ colCur[0] ? 'col-cur' : '' }}" if="{{ colOn[0] }}">
           <div class="bar-slot"></div>
           <text id="c0-them" class="num {{ colThemCls[0] }}">{{ colThem[0] }}</text>
-          <div class="bar-slot"><div class="bar {{ colThemBar[0] }}"></div></div>
+          <div class="bar-slot"><div class="bar {{ colThemBar[0] }}" if="{{ colThemBar[0] }}"></div></div>
           <text id="c0-us" class="num {{ colUsCls[0] }}">{{ colUs[0] }}</text>
-          <div class="bar-slot"><div class="bar {{ colUsBar[0] }}"></div></div>
+          <div class="bar-slot"><div class="bar {{ colUsBar[0] }}" if="{{ colUsBar[0] }}"></div></div>
         </div>
         <div id="col1" class="col {{ colCur[1] ? 'col-cur' : '' }}" if="{{ colOn[1] }}">
           <div class="bar-slot"></div>
           <text id="c1-them" class="num {{ colThemCls[1] }}">{{ colThem[1] }}</text>
-          <div class="bar-slot"><div class="bar {{ colThemBar[1] }}"></div></div>
+          <div class="bar-slot"><div class="bar {{ colThemBar[1] }}" if="{{ colThemBar[1] }}"></div></div>
           <text id="c1-us" class="num {{ colUsCls[1] }}">{{ colUs[1] }}</text>
-          <div class="bar-slot"><div class="bar {{ colUsBar[1] }}"></div></div>
+          <div class="bar-slot"><div class="bar {{ colUsBar[1] }}" if="{{ colUsBar[1] }}"></div></div>
         </div>
         <div id="col2" class="col {{ colCur[2] ? 'col-cur' : '' }}" if="{{ colOn[2] }}">
           <div class="bar-slot"></div>
           <text id="c2-them" class="num {{ colThemCls[2] }}">{{ colThem[2] }}</text>
-          <div class="bar-slot"><div class="bar {{ colThemBar[2] }}"></div></div>
+          <div class="bar-slot"><div class="bar {{ colThemBar[2] }}" if="{{ colThemBar[2] }}"></div></div>
           <text id="c2-us" class="num {{ colUsCls[2] }}">{{ colUs[2] }}</text>
-          <div class="bar-slot"><div class="bar {{ colUsBar[2] }}"></div></div>
+          <div class="bar-slot"><div class="bar {{ colUsBar[2] }}" if="{{ colUsBar[2] }}"></div></div>
         </div>
       </div>
 
-      <div id="half-us" class="half {{ usBg }}"
-           ontouchstart="startUs" ontouchmove="move" ontouchend="endUs" ontouchcancel="cancel" onlongpress="openMenu">
+      <div id="half-us" class="half half-bottom {{ usBg }}"
+           ontouchstart="start" ontouchmove="move" ontouchend="endUs" ontouchcancel="cancel" onlongpress="openPanel">
         <text class="label"></text>
         <text id="pts-us" class="points {{ usPtsCls }}" if="{{ !usLost }}">{{ usPts }}</text>
         <div id="lost-us" class="lost" if="{{ usLost }}"><div class="lost-bar"></div></div>
         <text id="label-us" class="label label-us">{{ usLabel }}</text>
       </div>
 
-      <!-- Serve cue: a grey arc on one corner of the current-set tile. The
-           tile's corners map to the court seen from our side, so the arc
-           marks the server's quadrant (their right is the screen's left).
-           Vela has no per-side borders, so the arc is an image placed over
-           the tile's known position (see .cn<cols>-<corner>). -->
-      <image id="serve-cue" class="serve-cue {{ cueCls }}" src="{{ cueSrc }}" if="{{ cueSrc }}"></image>
+      <!-- Serve cue: a bracket in the serving team's colour on one corner
+           of the current-set tile. The tile's corners map to the court
+           seen from our side (them on top, us below; their right is the
+           screen's left), so it marks the server's quadrant. It's one
+           corner of a larger frame, clipped (see .cue), placed over the
+           tile's known position (see .cn<cols>-<corner>). -->
+      <div id="serve-cue" class="cue {{ cueCls }}" if="{{ cueCls }}">
+        <div class="cue-frame cue-frame-{{ cueAt }}"></div>
+      </div>
 
-      <!-- Status pill (TIE-BREAK / PUNTO DE ORO), just below the scoreboard
-           so the edge between the board and our half stays visible. -->
+      <!-- Status pill (TIE-BREAK / PUNTO DE ORO / STAR POINT), just below the
+           scoreboard so the edge between the board and our half stays
+           visible. -->
       <div class="pill-wrap" if="{{ pill }}">
         <div class="pill"><text id="pill" class="pill-text">{{ pill }}</text></div>
       </div>
     </div>
 
-    <!-- Menu: close on top, three toggles (who served first, golden point,
-         keep screen on), then the two actions. The toggle knob is a flex
-         child pushed left or right, so no absolute positioning is needed. -->
-    <div class="menu" if="{{ menu && !confirm }}">
-      <div id="m-close" class="close" onclick="closeMenu"><text class="close-label">×</text></div>
-      <div id="m-first" class="row" onclick="toggleFirst">
-        <text class="row-label {{ firstUs ? 'row-label-us' : 'row-label-them' }}">{{ firstUs ? 'Sacamos' : 'Sacan' }}</text>
-        <div class="tg {{ firstUs ? 'tg-us' : 'tg-them' }}"><div class="knob knob-on"></div></div>
-      </div>
-      <div id="m-golden" class="row" onclick="toggleGolden">
-        <text class="row-label">Punto de oro</text>
-        <div class="tg {{ golden ? 'tg-on' : '' }}"><div class="knob {{ golden ? 'knob-on' : '' }}"></div></div>
-      </div>
-      <div id="m-screen" class="row" onclick="toggleScreen">
-        <text class="row-label">Pantalla fija</text>
-        <div class="tg {{ keepOn ? 'tg-on' : '' }}"><div class="knob {{ keepOn ? 'knob-on' : '' }}"></div></div>
-      </div>
-      <div id="m-reset" class="btn btn-new btn-first" onclick="askReset"><text class="btn-label btn-label-new">Nuevo partido</text></div>
-      <div id="m-exit" class="btn" onclick="exitApp"><text class="btn-label">Salir</text></div>
-    </div>
+    <!-- Panel: a sheet pulled down over the score, sliding in from the top
+         and back up on close. Like the band's own screens: a small header
+         (the time, then the view's title) over a list that scrolls freely,
+         with the next item peeking at the bottom edge. Swipe up from the
+         handle at the bottom closes it; swipe right goes back. -->
+    <div id="sheet" class="sheet {{ sheetCls }}" if="{{ view !== 'score' }}">
+      <scroll id="panel" class="list" scroll-y="true" if="{{ view === 'panel' }}" onscroll="scrolled">
+        <!-- Who serves: a button like the others, on the serving team's
+             colour with a white icon, the label in that colour. -->
+        <div id="p-serve" class="item" onclick="toggleServer">
+          <div id="p-serve-circle" class="circle {{ serverUs ? 'circle-us' : 'circle-them' }}"><image class="ic" src="/common/icon-serve.png"></image></div>
+          <text id="p-serve-label" class="item-label {{ serverUs ? 'lbl-us' : 'lbl-them' }}">{{ serverUs ? 'Sacamos' : 'Sacan' }}</text>
+        </div>
+        <div id="p-new" class="item item-next" onclick="askReset">
+          <div class="circle circle-new"><image class="ic" src="/common/icon-plus.png"></image></div>
+          <text class="item-label lbl-new">Nuevo</text>
+        </div>
+        <div id="p-history" class="item item-next" onclick="openHistory">
+          <div class="circle"><image class="ic" src="/common/icon-history.png"></image></div>
+          <text class="item-label">Historial</text>
+        </div>
+        <div id="p-more" class="item item-next" onclick="openMore">
+          <div class="circle"><image class="ic" src="/common/icon-more.png"></image></div>
+          <text class="item-label">Más</text>
+        </div>
+      </scroll>
 
-    <!-- New match asks first: it's the one step that can't be undone. -->
-    <div class="menu" if="{{ menu && confirm }}">
-      <text class="confirm-title">¿Nuevo partido?</text>
-      <text class="confirm-hint">Se borra el actual</text>
-      <div id="m-reset-yes" class="btn btn-danger btn-first" onclick="resetMatch"><text class="btn-label">Sí, empezar</text></div>
-      <div id="m-reset-no" class="btn" onclick="cancelReset"><text class="btn-label">Cancelar</text></div>
+      <!-- More: the settings that outlive a match. Deuce rule: a Wear button
+           with a secondary label (the current rule); a tap moves to the
+           next one. Keep screen on: a Wear switch button. -->
+      <scroll id="more" class="list" scroll-y="true" if="{{ view === 'more' }}" onscroll="scrolled">
+        <div id="m-deuce" class="sw" onclick="nextDeuce">
+          <div class="sw-text">
+            <text class="sw-label">Iguales</text>
+            <text id="m-deuce-value" class="sw-sub">{{ deuceName }}</text>
+          </div>
+        </div>
+        <div id="m-screen" class="sw sw-next {{ keepOn ? 'sw-on' : '' }}" onclick="toggleScreen">
+          <div class="sw-text"><text class="sw-label">Pantalla</text><text class="sw-label">fija</text></div>
+          <div id="m-screen-tg" class="tg {{ keepOn ? 'tg-on' : '' }}">
+            <div class="knob {{ keepOn ? 'knob-on' : '' }}"><image class="tick" src="/common/icon-tick.png" if="{{ keepOn }}"></image></div>
+          </div>
+        </div>
+      </scroll>
+
+      <!-- History: the last matches, newest first, each as a small copy of
+           the scoreboard (a column per set, their games over ours; the
+           set's winner bold, the loser dimmed). -->
+      <scroll id="history" class="list" scroll-y="true" if="{{ view === 'history' }}" onscroll="scrolled">
+        <text id="h-empty" class="h-empty" if="{{ !hist.length }}">Sin partidos todavía</text>
+        <div class="card" for="{{ hist }}">
+          <text class="h-date">{{ $item.date }}</text>
+          <!-- The set in play sits on a grey tile, as on the scoreboard. -->
+          <div class="h-board">
+            <div class="h-col {{ $item.cur0 }}" if="{{ $item.on0 }}">
+              <text class="num h-num {{ $item.tc0 }}">{{ $item.t0 }}</text>
+              <text class="num h-num {{ $item.uc0 }}">{{ $item.u0 }}</text>
+            </div>
+            <div class="h-col {{ $item.cur1 }}" if="{{ $item.on1 }}">
+              <text class="num h-num {{ $item.tc1 }}">{{ $item.t1 }}</text>
+              <text class="num h-num {{ $item.uc1 }}">{{ $item.u1 }}</text>
+            </div>
+            <div class="h-col {{ $item.cur2 }}" if="{{ $item.on2 }}">
+              <text class="num h-num {{ $item.tc2 }}">{{ $item.t2 }}</text>
+              <text class="num h-num {{ $item.uc2 }}">{{ $item.u2 }}</text>
+            </div>
+          </div>
+        </div>
+      </scroll>
+
+      <!-- New match: a Wear OS alert dialog. The title asks; below it,
+           one filled confirm button, and under that a bare cross to cancel. -->
+      <div id="confirm" class="dialog" if="{{ view === 'confirm' }}">
+        <text class="d-title">¿Empezar otro?</text>
+        <div id="c-yes" class="d-yes" onclick="resetMatch"><image class="d-ic" src="/common/icon-yes.png"></image></div>
+        <!-- Cancel: a bare cross under the button, like a text button. -->
+        <div id="c-no" class="d-no" onclick="cancelReset"><image class="d-x" src="/common/icon-close.png"></image></div>
+      </div>
+
+      <!-- Header over the list (after it, so it paints on top). -->
+      <div class="header">
+        <text id="clock" class="clock">{{ clock }}</text>
+        <text id="title" class="title" if="{{ title }}">{{ title }}</text>
+      </div>
+
+      <!-- Handle at the bottom edge, like the band's notification shade: a
+           swipe up that starts on it closes the panel from any of its views. -->
+      <div id="grab" class="grab"
+           ontouchstart="start" ontouchmove="move" ontouchend="endGrab" ontouchcancel="cancel">
+        <div class="grab-bar"></div>
+      </div>
+
+      <!-- Scroll indicator, on the right edge while a list can scroll. The
+           thumb's position is a class (sp0-sp10, tenths of the way down). -->
+      <div class="sbar" if="{{ sbar }}">
+        <div class="sthumb {{ sbar }}"></div>
+      </div>
     </div>
   </div>
 </template>
@@ -120,22 +204,45 @@ import vibrator from '@system.vibrator'
 import brightness from '@system.brightness'
 import app from '@system.app'
 import {
-  US, THEM, newMatch, score, addPoint, removePoint, setGolden, setFirst, serve,
-  pointLabels, serialize, deserialize
+  US, THEM, STAR, DEUCE_MODES, newMatch, score, addPoint, removePoint, setDeuce,
+  decidingPoint, setFirst, setId, serve, pointLabels, serialize, deserialize
 } from '../../common/padel'
+import { record, serializeLog, deserializeLog, clockText, dateText } from '../../common/log'
 
 var STORE_KEY = 'padel-band-state'
 var PREFS_KEY = 'padel-band-prefs'
+var LOG_KEY = 'padel-band-log'
 var MIN_DX = 30 // px of horizontal travel for a swipe
+var MIN_DY = 60 // px of vertical travel for a swipe down / up
 var TAP_SLOP = 12 // px a tap may wander
-var TAP_MS = 450 // longer than this is not a tap (long-press opens the menu)
+var TAP_MS = 450 // longer than this is not a tap (long-press opens the panel)
 var FLASH_MS = 220
+var CLICK_GUARD_MS = 400 // a click this soon after a swipe is part of it
+var CLOCK_MS = 5000
+var HIDE_MS = 200 // the sheet goes a little before its slide ends: with no
+//                   fill mode, the last frame would snap back into view
+var TITLES = { panel: 'Pádel', more: 'Más', history: 'Historial', confirm: '' }
+var DEUCE_NAMES = { adv: 'Ventaja', gold: 'Punto de oro', star: 'Star Point' }
+// Content height of each scrolling list, for the scroll indicator: the
+// list's top padding, its items and gaps, and the bottom padding that lets
+// the last item clear the handle (see .items, .item, .sw, .card).
+var LIST_PAD = 92 + 72
+var LIST_H = {
+  panel: function () { return LIST_PAD + 4 * 141 + 3 * 18 },
+  more: function () { return LIST_PAD + 2 * 84 + 6 },
+  history: function (n) { return LIST_PAD + Math.max(1, n) * 162 }
+}
 
 // Held outside `private` so the framework doesn't make them reactive.
 var match = newMatch(false)
+var log = []
 var touch = null // { x, y, lastX, lastY, t } while a finger is down
 var flashTimer = null
+var clockTimer = null
 var flash = '' // 'u+', 't-' ... while a half is flashing
+var swipedAt = 0
+var clickBusy = false // a click has acted; cleared once its event is done
+var closing = null // the timer hiding the sheet while it slides up
 
 function pointOf(evt, list) {
   var l = evt && evt[list]
@@ -143,15 +250,44 @@ function pointOf(evt, list) {
   return null
 }
 
+// A history card: the date, and up to three set columns (their games over
+// ours). In a finished set the winner is bold and the loser dimmed.
+function card(e, live) {
+  var c = { date: dateText(e.id) }
+  for (var k = 0; k < 3; k++) {
+    var p = e.sets[k]
+    var done = !!p && (k < e.sets.length - 1 || !!e.w)
+    var tWon = !!p && p[1] > p[0]
+    c['on' + k] = !!p
+    c['cur' + k] = !!p && !done && live ? 'h-cur' : ''
+    c['t' + k] = p ? String(p[1]) : ''
+    c['u' + k] = p ? String(p[0]) : ''
+    c['tc' + k] = !done ? 'num-them' : (tWon ? 'num-them num-won' : 'num-them-dim')
+    c['uc' + k] = !done ? 'num-us' : (tWon ? 'num-us-dim' : 'num-us num-won')
+  }
+  return c
+}
+
+function count(h, side) {
+  var n = 0
+  for (var i = 0; i < h.length; i++) if (h[i] === side) n++
+  return n
+}
+
 export default {
   private: {
-    menu: false,
-    confirm: false,
+    view: 'score', // score | panel | more | history | confirm
+    sheetCls: '', // the sheet's slide: sheet-in, sheet-out or none
+    sbar: '', // scroll indicator thumb class, '' when the view can't scroll
+    title: '',
+    ready: false, // the saved match has loaded (or there was none)
     ask: true,
-    firstUs: true,
-    cueSrc: '',
+    serverUs: true,
+    clock: '',
+    hist: [],
     cueCls: '',
-    golden: false,
+    cueAt: 'tl', // the cue's corner, to place its layers
+    deuceName: 'Ventaja',
     keepOn: true,
     themPts: '0',
     usPts: '0',
@@ -177,6 +313,7 @@ export default {
   onInit() {
     var page = this
     match = newMatch(false)
+    log = []
     this.render()
     try {
       storage.get({
@@ -185,6 +322,10 @@ export default {
         success: function (data) {
           match = deserialize(data)
           page.render()
+          page.ready = true
+        },
+        fail: function () {
+          page.ready = true
         }
       })
       storage.get({
@@ -198,30 +339,45 @@ export default {
           page.applyScreen()
         }
       })
-    } catch (e) {}
+      storage.get({
+        key: LOG_KEY,
+        default: '',
+        success: function (data) {
+          // A point scored before the log loaded is recorded again on top.
+          log = record(deserializeLog(data), match, Date.now())
+        }
+      })
+    } catch (e) {
+      this.ready = true
+    }
   },
 
   onShow() {
     this.applyScreen()
     this.render()
+    if (this.view !== 'score') this.startClock()
   },
 
   onHide() {
     this.save()
+    this.stopClock()
     this.setScreen(false)
   },
 
   onDestroy() {
     this.save()
+    this.stopClock()
     this.setScreen(false)
   },
 
-  // The system treats a right swipe as "back". It does nothing here, so a
-  // stray swipe mid-match can't close the scoreboard; Salir in the menu
-  // exits instead.
+  // The system's back gesture (a right swipe): one level up, and from the
+  // score it exits. Scoring only uses taps and left swipes, so a right
+  // swipe is never a point.
   onBackPress() {
-    if (this.confirm) this.confirm = false
-    else if (this.menu) this.menu = false
+    var v = this.view
+    if (v === 'more' || v === 'history' || v === 'confirm') this.show('panel')
+    else if (v === 'panel') this.closePanel()
+    else this.exitApp()
     return true
   },
 
@@ -240,8 +396,11 @@ export default {
     touch.lastY = p.clientY
   },
 
-  end(evt, side) {
-    if (!touch) return
+  // Ends the touch and classifies it: 'tap', 'left', 'right', 'up', 'down'
+  // or '' (neither). Only the first handler to see a touch gets it, so a
+  // touch that reaches both a button and the panel counts once.
+  gesture(evt) {
+    if (!touch) return ''
     var p = pointOf(evt, 'changedTouches')
     var x = p ? p.clientX : touch.lastX
     var y = p ? p.clientY : touch.lastY
@@ -249,14 +408,51 @@ export default {
     var dy = y - touch.y
     var held = Date.now() - touch.t
     touch = null
-    // Tap: point for that side.
-    if (Math.abs(dx) <= TAP_SLOP && Math.abs(dy) <= TAP_SLOP && held <= TAP_MS) {
-      this.add(side)
+    if (Math.abs(dx) <= TAP_SLOP && Math.abs(dy) <= TAP_SLOP && held <= TAP_MS) return 'tap'
+    if (Math.abs(dx) >= MIN_DX && Math.abs(dx) >= Math.abs(dy) * 1.5) return dx < 0 ? 'left' : 'right'
+    if (Math.abs(dy) >= MIN_DY && Math.abs(dy) >= Math.abs(dx) * 1.5) return dy < 0 ? 'up' : 'down'
+    return ''
+  },
+
+  // Score halves: tap adds, swipe left subtracts, swipe down opens the
+  // panel. A right swipe is the system's back (exit).
+  end(evt, side) {
+    var g = this.gesture(evt)
+    if (g === 'tap') this.add(side)
+    else if (g === 'left') this.remove(side)
+    else if (g === 'down') this.openPanel()
+  },
+
+  // The handle at the bottom: swipe up from it closes the panel.
+  endGrab(evt) {
+    var g = this.gesture(evt)
+    if (g && g !== 'tap') swipedAt = Date.now()
+    if (g === 'up') this.closePanel()
+  },
+
+  // Who-serves screen: a swipe down opens the panel; taps choose (click).
+  endAsk(evt) {
+    var g = this.gesture(evt)
+    if (g && g !== 'tap') swipedAt = Date.now()
+    if (g === 'down') this.openPanel()
+  },
+
+  // A list scrolled (natively): moves the indicator, and marks a swipe so
+  // the click that may end it presses nothing.
+  scrolled(evt) {
+    swipedAt = Date.now()
+    this.updateBar(evt && typeof evt.scrollY === 'number' ? evt.scrollY : 0)
+  },
+
+  updateBar(y) {
+    var h = LIST_H[this.view]
+    var max = h ? h(this.hist.length) - 520 : 0
+    if (max <= 0) {
+      this.sbar = ''
       return
     }
-    // Swipe left: take a point away. A right swipe does nothing.
-    if (dx > -MIN_DX || Math.abs(dx) < Math.abs(dy) * 1.5) return
-    this.remove(side)
+    var k = Math.round((Math.min(Math.max(y, 0), max) / max) * 10)
+    this.sbar = 'sp' + k
   },
 
   // A cancelled touch (e.g. the system took the gesture) never scores.
@@ -264,16 +460,27 @@ export default {
     touch = null
   },
 
-  startThem(evt) { this.start(evt) },
-  startUs(evt) { this.start(evt) },
   endThem(evt) { this.end(evt, THEM) },
   endUs(evt) { this.end(evt, US) },
+
+  // False for the click that may trail a swipe on a button, and for a
+  // click that already acted: if a click bubbles and the first handler
+  // changes the view, the next handler up may belong to the new view's
+  // reused node, which would press a button the user never touched.
+  clickOk() {
+    if (clickBusy || Date.now() - swipedAt <= CLICK_GUARD_MS) return false
+    clickBusy = true
+    setTimeout(function () { clickBusy = false }, 0)
+    return true
+  },
 
   // --- scoring ------------------------------------------------------------
 
   add(side) {
     var next = addPoint(match, side)
     if (next === match) return
+    // The match gets its id (and its place in the log) with its first point.
+    if (next.id === null) next = setId(next, Date.now())
     match = next
     // A long buzz when the point closes a game, so it's felt without looking.
     var s = score(match)
@@ -284,13 +491,17 @@ export default {
   remove(side) {
     var next = removePoint(match, side)
     if (next === match) return
+    // With nothing of its own to remove, the swipe rewinds the other side's
+    // last point: flash the half that actually lost it.
+    var lost = count(next.history, side) < count(match.history, side) ? side : (side === US ? THEM : US)
     match = next
-    this.changed(side + '-', 'short')
+    this.changed(lost + '-', 'short')
   },
 
   changed(f, buzz) {
     // Saved on every change: the band can kill the app while the screen is off.
     this.save()
+    this.saveLog()
     this.buzz(buzz)
     this.showFlash(f)
   },
@@ -311,59 +522,120 @@ export default {
     }, FLASH_MS)
   },
 
-  // --- menu ---------------------------------------------------------------
-
-  // --- who serves first ---------------------------------------------------
+  // --- who serves ---------------------------------------------------------
 
   chooseThem() { this.choose(THEM) },
   chooseUs() { this.choose(US) },
 
   choose(side) {
+    if (!this.clickOk()) return
     match = setFirst(match, side)
     this.save()
     this.buzz('short')
     this.render()
   },
 
-  toggleFirst() {
+  // Flips who serves now. The whole sequence follows from who served
+  // first, so that's what flips.
+  toggleServer() {
+    if (!this.clickOk()) return
     match = setFirst(match, match.first === THEM ? US : THEM)
     this.save()
+    this.buzz('short')
     this.render()
   },
 
-  openMenu() {
+  // --- panel --------------------------------------------------------------
+
+  openPanel() {
     touch = null
-    this.confirm = false
-    this.menu = true
+    // The finger that opened it (a long-press) may lift over a button.
+    swipedAt = Date.now()
+    if (closing) {
+      clearTimeout(closing)
+      closing = null
+    }
+    // Slides in only when it comes down over the score.
+    if (this.view === 'score' || this.sheetCls === 'sheet-out') this.sheetCls = 'sheet-in'
+    this.show('panel')
+    this.startClock()
   },
 
-  closeMenu() {
-    this.menu = false
+  // Slides the sheet up, then drops it.
+  closePanel() {
+    var page = this
+    if (this.view === 'score' || closing) return
+    this.stopClock()
+    this.sheetCls = 'sheet-out'
+    closing = setTimeout(function () {
+      closing = null
+      page.view = 'score'
+      page.sheetCls = ''
+    }, HIDE_MS)
+  },
+
+  show(v) {
+    this.title = TITLES[v] || ''
+    this.view = v
+    this.updateBar(0)
+  },
+
+  startClock() {
+    var page = this
+    this.clock = clockText(new Date())
+    if (clockTimer) clearInterval(clockTimer)
+    clockTimer = setInterval(function () {
+      page.clock = clockText(new Date())
+    }, CLOCK_MS)
+  },
+
+  stopClock() {
+    if (clockTimer) clearInterval(clockTimer)
+    clockTimer = null
+  },
+
+  openMore() {
+    if (!this.clickOk()) return
+    this.show('more')
+  },
+
+  openHistory() {
+    if (!this.clickOk()) return
+    var cards = []
+    for (var i = 0; i < log.length; i++) cards.push(card(log[i], log[i].id === match.id))
+    this.hist = cards
+    this.show('history')
   },
 
   askReset() {
-    this.confirm = true
+    if (!this.clickOk()) return
+    this.show('confirm')
   },
 
   cancelReset() {
-    this.confirm = false
+    if (!this.clickOk()) return
+    this.show('panel')
   },
 
   resetMatch() {
-    match = newMatch(match.golden)
+    if (!this.clickOk()) return
+    match = newMatch(match.deuce)
     this.save()
     this.render()
-    this.confirm = false
-    this.menu = false
+    this.closePanel()
   },
 
-  toggleGolden() {
-    match = setGolden(match, !match.golden)
+  // Advantage, golden point, Star Point, and round again.
+  nextDeuce() {
+    if (!this.clickOk()) return
+    var i = DEUCE_MODES.indexOf(match.deuce)
+    match = setDeuce(match, DEUCE_MODES[(i + 1) % DEUCE_MODES.length])
     this.save()
     this.render()
   },
 
   toggleScreen() {
+    if (!this.clickOk()) return
     this.keepOn = !this.keepOn
     this.applyScreen()
     try { storage.set({ key: PREFS_KEY, value: JSON.stringify({ keepOn: this.keepOn }) }) } catch (e) {}
@@ -371,6 +643,7 @@ export default {
 
   exitApp() {
     this.save()
+    this.stopClock()
     this.setScreen(false)
     try { app.terminate() } catch (e) {}
   },
@@ -389,13 +662,19 @@ export default {
     try { storage.set({ key: STORE_KEY, value: serialize(match) }) } catch (e) {}
   },
 
+  saveLog() {
+    log = record(log, match, Date.now())
+    try { storage.set({ key: LOG_KEY, value: serializeLog(log) }) } catch (e) {}
+  },
+
   render() {
     var s = score(match)
-    var l = pointLabels(s, match.golden)
+    var l = pointLabels(s)
     var w = s.winner
-    this.golden = match.golden
+    this.deuceName = DEUCE_NAMES[match.deuce]
     this.ask = !match.first
-    this.firstUs = match.first !== THEM
+    var sv = serve(match, s)
+    this.serverUs = sv ? sv.server === US : match.first !== THEM
 
     // Points, labels and half tints.
     var adv = l.u === 'AD' ? US : (l.t === 'AD' ? THEM : null)
@@ -483,32 +762,47 @@ export default {
     this.colUsBar = ub
 
     // Serve cue over the current-set tile (always the last column).
-    var sv = serve(match, s)
     if (sv && !w) {
-      var c = sv.corner.toLowerCase()
-      this.cueSrc = '/common/serve-' + c + '.png'
-      this.cueCls = 'cn' + cols.length + '-' + c
+      var cn = sv.corner.toLowerCase()
+      this.cueCls = 'cn' + cols.length + '-' + cn
+      this.cueAt = cn
     } else {
-      this.cueSrc = ''
       this.cueCls = ''
     }
 
     // Status pill: only when something special is going on.
     var pill = ''
     if (!w && s.tiebreak) pill = 'TIE-BREAK'
-    else if (!w && match.golden && s.points.u === 3 && s.points.t === 3) pill = 'PUNTO DE ORO'
+    else if (decidingPoint(match, s)) pill = match.deuce === STAR ? 'STAR POINT' : 'PUNTO DE ORO'
     this.pill = pill
   }
 }
 </script>
 
 <style>
-/* Palette: black panel, orange for them, blue for us.
-   them  #ff9f0a  dim #734804  set-dim #5c4520  tint #3a2405  flash #5c3a08
-   us    #64d2ff  dim #2d5f73  set-dim #245066  tint #062b40  flash #0a4766
-   Layout (px): half 200 | board 120 | half 200 = 520.
-   Serve cue: grey (#8e8e93) arc on the current-set tile; lime (#d9f212)
-   ball on the who-serves screen.
+/* Wear OS Material 3, scaled to the band. Every size, spacing and state
+   below follows Wear's tokens (androidx.wear.compose.material3) at
+   1 dp = 1.5 px: the band's pixels are about half a Wear dp physically, and
+   1.5 matches the band's own settings screens. Percentages of the width
+   stay percentages. Round-screen pieces (curved time, edge button) become
+   straight ones.
+   Type, in px (Wear style): 88 and 48 the score's own numerals (outside
+   Wear's scale, like a watch face) | 36 displaySmall | 24 titleMedium |
+   22 labelMedium and the time (arcMedium) | 20 labelSmall.
+   Colour roles (Wear's, with our hues): primary #e5e5ea (on: white),
+   primaryContainer #4a4a4e, surfaceContainer #2c2c2e, outline #8e8e93,
+   onSurfaceVariant #c7c7cc, background #000; yellow #ffb703 for
+   New match, green #30d158 to confirm it; team blue #8ecae6 and orange #fb8500.
+   Palette (8ecae6 219ebc 023047 ffb703 fb8500): light blue for us, its
+   teal and navy for our containers and tints, orange for them, yellow for
+   New match. The dims and tints in between are interpolated: toward the
+   navy for us, toward black for them.
+   them  #fb8500  dim #733d00  set-dim #663c0c  tint #3a1f00  flash #5d3100
+   us    #8ecae6  dim #10627c  set-dim #0d5670  tint #023047  flash #0a4b64
+   Layout (px): half 185 | board 150 | half 185 = 520.
+   Serve cue: a bracket on the current-set tile in the serving team's
+   colour. The ball on the who-serves screen is lime (#d9f212), the padel
+   ball's colour.
    Big points: one style for digits, AD and WIN (88 px bold; WIN is the
    widest text that fits the capsule's rounded ends). */
 .page {
@@ -526,41 +820,49 @@ export default {
 /* --- halves --- */
 .half {
   width: 212px;
-  height: 200px;
+  height: 185px;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   background-color: #000000;
 }
+/* The points sit 7px nearer the board than the half's centre, so WIN
+   clears the capsule's rounded ends. */
+.half-top {
+  padding-top: 14px;
+}
+.half-bottom {
+  padding-bottom: 14px;
+}
 .half-them-hi {
-  background-color: #3a2405;
+  background-color: #3a1f00;
 }
 .half-us-hi {
-  background-color: #062b40;
+  background-color: #023047;
 }
 .flash-them {
-  background-color: #5c3a08;
+  background-color: #5d3100;
 }
 .flash-us {
-  background-color: #0a4766;
+  background-color: #0a4b64;
 }
 .flash-sub {
   background-color: #262626;
 }
 .label {
   width: 212px;
-  height: 18px;
-  line-height: 18px;
-  font-size: 13px;
+  height: 24px;
+  line-height: 24px;
+  font-size: 20px;
   font-weight: bold;
   text-align: center;
   color: #000000;
 }
 .label-them {
-  color: #ff9f0a;
+  color: #fb8500;
 }
 .label-us {
-  color: #64d2ff;
+  color: #8ecae6;
 }
 .points {
   width: 212px;
@@ -571,16 +873,16 @@ export default {
   text-align: center;
 }
 .pts-them {
-  color: #ff9f0a;
+  color: #fb8500;
 }
 .pts-us {
-  color: #64d2ff;
+  color: #8ecae6;
 }
 .pts-them-dim {
-  color: #734804;
+  color: #733d00;
 }
 .pts-us-dim {
-  color: #2d5f73;
+  color: #10627c;
 }
 /* Same box as .points, so the bar sits exactly where the digits' ink does. */
 .lost {
@@ -599,18 +901,22 @@ export default {
 /* --- scoreboard --- */
 .board {
   width: 212px;
-  height: 120px;
+  height: 150px;
   flex-direction: row;
   justify-content: center;
   align-items: center;
   background-color: #141414;
 }
+/* Vela keeps a property set by a class after the class is removed, unless
+   the base rule sets it too: so every property a state class toggles
+   (.col-cur, .num-won, .h-cur) has its default here. */
 .col {
   width: 58px;
-  height: 104px;
+  height: 134px;
   margin-left: 3px;
   margin-right: 3px;
   border-radius: 12px;
+  background-color: #141414;
   flex-direction: column;
   justify-content: center;
   align-items: center;
@@ -620,22 +926,23 @@ export default {
 }
 .num {
   width: 58px;
-  height: 42px;
-  line-height: 42px;
-  font-size: 38px;
+  height: 52px;
+  line-height: 52px;
+  font-size: 48px;
+  font-weight: normal;
   text-align: center;
 }
 .num-them {
-  color: #ff9f0a;
+  color: #fb8500;
 }
 .num-us {
-  color: #64d2ff;
+  color: #8ecae6;
 }
 .num-them-dim {
-  color: #5c4520;
+  color: #663c0c;
 }
 .num-us-dim {
-  color: #245066;
+  color: #0d5670;
 }
 .num-won {
   font-weight: bold;
@@ -653,93 +960,130 @@ export default {
   border-radius: 1px;
 }
 .bar-them {
-  background-color: #ff9f0a;
+  background-color: #fb8500;
 }
 .bar-us {
-  background-color: #64d2ff;
+  background-color: #8ecae6;
 }
 
 /* --- serve cue --- */
-/* 12x12 arc images placed on the current-set tile's corners. Tile geometry:
+/* A 24x24 bracket flush with the current-set tile's corner: two 6px
+   bars that turn the corner with the tile's own 12px radius. It's one
+   corner of a 48x48 frame (6px border, 12px radius), the rest clipped
+   away: Vela draws neither per-side borders nor per-corner radii. Drawn
+   with fills: the old image was seen grey on the band. Tile geometry:
    columns are 58 wide with 3px margins (64 each), centred; the tile is the
-   last column, y 208-312. Class cn<number of columns>-<corner>. */
-.serve-cue {
+   last column, x from 77 / 109 / 141 for 1 / 2 / 3 columns, y 193-327.
+   Class cn<number of columns>-<corner>; the frame has a -<corner> class. */
+.cue {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  width: 24px;
+  height: 24px;
+  overflow: hidden;
+}
+.cue-frame {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-style: solid;
+  border-width: 6px;
+  border-color: #8ecae6;
+  border-radius: 12px;
+}
+/* In the serving team's colour: the top corners are theirs, the bottom
+   ones ours. */
+.cue-frame-tl {
+  left: 0px;
+  top: 0px;
+  border-color: #fb8500;
+}
+.cue-frame-tr {
+  left: -24px;
+  top: 0px;
+  border-color: #fb8500;
+}
+.cue-frame-bl {
+  left: 0px;
+  top: -24px;
+  border-color: #8ecae6;
+}
+.cue-frame-br {
+  left: -24px;
+  top: -24px;
+  border-color: #8ecae6;
 }
 .cn1-tl {
   left: 77px;
-  top: 208px;
+  top: 193px;
 }
 .cn1-tr {
-  left: 123px;
-  top: 208px;
+  left: 111px;
+  top: 193px;
 }
 .cn1-bl {
   left: 77px;
-  top: 300px;
+  top: 303px;
 }
 .cn1-br {
-  left: 123px;
-  top: 300px;
+  left: 111px;
+  top: 303px;
 }
 .cn2-tl {
   left: 109px;
-  top: 208px;
+  top: 193px;
 }
 .cn2-tr {
-  left: 155px;
-  top: 208px;
+  left: 143px;
+  top: 193px;
 }
 .cn2-bl {
   left: 109px;
-  top: 300px;
+  top: 303px;
 }
 .cn2-br {
-  left: 155px;
-  top: 300px;
+  left: 143px;
+  top: 303px;
 }
 .cn3-tl {
   left: 141px;
-  top: 208px;
+  top: 193px;
 }
 .cn3-tr {
-  left: 187px;
-  top: 208px;
+  left: 175px;
+  top: 193px;
 }
 .cn3-bl {
   left: 141px;
-  top: 300px;
+  top: 303px;
 }
 .cn3-br {
-  left: 187px;
-  top: 300px;
+  left: 175px;
+  top: 303px;
 }
 
-/* --- status pill, 6px below the board / our half edge (y 326-346) --- */
+/* --- status pill, 5px below the board / our half edge (y 340-362) --- */
 .pill-wrap {
   position: absolute;
   left: 0px;
-  top: 326px;
+  top: 340px;
   width: 212px;
-  height: 20px;
+  height: 26px;
   flex-direction: row;
   justify-content: center;
 }
 .pill {
-  height: 20px;
-  padding-left: 10px;
-  padding-right: 10px;
-  border-radius: 10px;
+  height: 26px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-radius: 13px;
   background-color: #ffffff;
   justify-content: center;
   align-items: center;
 }
 .pill-text {
-  height: 20px;
-  line-height: 20px;
-  font-size: 12px;
+  height: 26px;
+  line-height: 26px;
+  font-size: 20px;
   font-weight: bold;
   color: #000000;
   text-align: center;
@@ -750,160 +1094,432 @@ export default {
   flex-direction: column;
 }
 .ask-title {
-  height: 26px;
-  line-height: 26px;
-  font-size: 20px;
+  height: 27px;
+  line-height: 27px;
+  font-size: 24px;
   font-weight: bold;
   color: #ffffff;
   text-align: center;
 }
-.ask-hint {
-  height: 18px;
-  line-height: 18px;
-  margin-top: 6px;
-  font-size: 13px;
-  color: #8a8a8a;
-  text-align: center;
-}
+/* The ball over the question, 12px (8dp) apart, like a Wear dialog's icon
+   over its title. */
 .ask-ball {
-  width: 26px;
-  height: 26px;
-  border-width: 1px;
-  border-color: #d9f212;
-  border-radius: 13px;
-  background-color: #d9f212;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
 }
 .ask-text {
-  height: 34px;
-  line-height: 34px;
-  margin-top: 10px;
-  font-size: 26px;
+  height: 39px;
+  line-height: 39px;
+  font-size: 36px;
   font-weight: bold;
   text-align: center;
 }
 .ask-them {
-  color: #ff9f0a;
+  color: #fb8500;
 }
 .ask-us {
-  color: #64d2ff;
+  color: #8ecae6;
 }
 
-/* --- menu --- */
-/* One rhythm: rows and buttons are 184x48 with 6px between them, 14px
-   between the toggles and the buttons, and 24px under the close button.
-   Colour only where it means something: the team colours for who served
-   first (knob right for us, left for them), light grey for a toggle that's
-   on, amber for New match, red for the confirm step. */
-.menu {
+/* --- panel --- */
+/* Header: the time (arcMedium, onBackground at 80% luminance) and the
+   view's title (titleMedium), straight instead of curved. The list starts
+   below it and runs past the bottom edge, so the third item peeks. */
+.header {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 212px;
+  height: 78px;
+  padding-top: 12px;
+  flex-direction: column;
+  align-items: center;
+  background-color: #000000;
+}
+.clock {
+  height: 27px;
+  line-height: 27px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #cccccc;
+  text-align: center;
+}
+.title {
+  height: 27px;
+  line-height: 27px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffffff;
+  text-align: center;
+}
+/* The sheet: the panel's views over the score. It slides down from the
+   top on open and back up on close (keyframes: Vela animates transform but
+   has no transitions on it, and no fill mode). */
+.sheet {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 212px;
+  height: 520px;
+  background-color: #000000;
+}
+/* In: eases in and out, so it starts gently (ease-out set off at full
+   speed, which read as abrupt); out: ease-in, as before. */
+.sheet-in {
+  animation-name: sheetIn;
+  animation-duration: 300ms;
+  animation-timing-function: ease-in-out;
+}
+.sheet-out {
+  animation-name: sheetOut;
+  animation-duration: 220ms;
+  animation-timing-function: ease-in;
+}
+@keyframes sheetIn {
+  0% {
+    transform: translateY(-520px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+@keyframes sheetOut {
+  0% {
+    transform: translateY(0px);
+  }
+  100% {
+    transform: translateY(-520px);
+  }
+}
+/* A list: the whole screen scrolls natively, its items as direct
+   children (a wrapper would stretch to the list's height and leave nothing
+   to scroll); they start below the header and end 72px above the bottom,
+   clear of the handle. */
+.list {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 212px;
+  height: 520px;
+  padding-top: 92px;
+  padding-bottom: 72px;
+  flex-direction: column;
+  align-items: center;
+}
+/* Round buttons: Wear's extra large icon toggle button (72dp = 108px,
+   icon 36dp = 54px) with its label below (labelMedium). Spacing: 4dp (6px)
+   from a button to its own label, as Wear's button-to-label gap; 12dp
+   (18px) between items, our own rule (Wear has no token for labelled icon
+   buttons in a column): three times the label gap, so a label always sits
+   nearer its button than the next one. 159px per item, 2.8 on screen. */
+.item {
+  width: 196px;
+  height: 141px;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+}
+.item-next {
+  margin-top: 18px;
+}
+.circle {
+  width: 108px;
+  height: 108px;
+  border-radius: 54px;
+  justify-content: center;
+  align-items: center;
+  background-color: #2c2c2e;
+}
+/* Who serves: the team's colour as the container (the palette's teal for
+   us, the orange for them), the icon white. */
+.circle-us {
+  background-color: #219ebc;
+}
+.circle-them {
+  background-color: #fb8500;
+}
+/* New match: a soft yellow (#ffb703) filled button with a black icon, the
+   label in the same yellow. */
+.circle-new {
+  background-color: #ffb703;
+}
+.ic {
+  width: 54px;
+  height: 54px;
+}
+.item-label {
+  height: 27px;
+  line-height: 27px;
+  margin-top: 6px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #ffffff;
+  text-align: center;
+}
+.lbl-us {
+  color: #8ecae6;
+}
+.lbl-them {
+  color: #fb8500;
+}
+.lbl-new {
+  color: #ffb703;
+}
+
+/* --- more: Wear switch buttons --- */
+/* Row: min height 52dp (78px), stadium (26dp = 39px radius), padding
+   14dp (here 7% of the width, 15px) and 8dp (12px), 6dp (9px) to the
+   switch. Unchecked surfaceContainer, checked primaryContainer. Labels
+   wrap to two lines on this narrow screen, one text per line. */
+.sw {
+  width: 196px;
+  height: 84px;
+  padding-left: 15px;
+  padding-right: 15px;
+  border-radius: 39px;
+  flex-shrink: 0;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #2c2c2e;
+}
+.sw-on {
+  background-color: #4a4a4e;
+}
+.sw-next {
+  margin-top: 6px;
+}
+.sw-text {
+  flex-direction: column;
+}
+.sw-label {
+  height: 27px;
+  line-height: 27px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #ffffff;
+}
+/* Secondary label (labelSmall, onSurfaceVariant): the button's value. */
+.sw-sub {
+  height: 24px;
+  line-height: 24px;
+  font-size: 20px;
+  color: #c7c7cc;
+}
+/* Switch: track 32x22dp (48x33px) with a 2dp (3px) border; thumb 12dp
+   (18px) unchecked, in outline grey; 18dp (27px) checked, primaryContainer
+   with a primary tick, on a primary track. */
+.tg {
+  width: 48px;
+  height: 33px;
+  padding-left: 4px;
+  padding-right: 4px;
+  border-style: solid;
+  border-width: 3px;
+  border-color: #8e8e93;
+  border-radius: 17px;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  background-color: #2c2c2e;
+}
+.tg-on {
+  padding-left: 0px;
+  padding-right: 0px;
+  justify-content: flex-end;
+  border-color: #e5e5ea;
+  background-color: #e5e5ea;
+}
+.knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  justify-content: center;
+  align-items: center;
+  background-color: #8e8e93;
+}
+.knob-on {
+  width: 27px;
+  height: 27px;
+  border-radius: 14px;
+  background-color: #4a4a4e;
+}
+.tick {
+  width: 14px;
+  height: 14px;
+}
+
+/* --- history --- */
+/* Cards (Wear's card shape, 26dp = 39px corners, surfaceContainerLow) with
+   the date (labelSmall, onSurfaceVariant) over a copy of the scoreboard:
+   144px tall, 150 per card, 2.8 on screen. */
+.card {
+  width: 196px;
+  height: 156px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+  border-radius: 39px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #1c1c1e;
+}
+.h-date {
+  height: 24px;
+  line-height: 24px;
+  margin-bottom: 9px;
+  font-size: 20px;
+  color: #c7c7cc;
+  text-align: center;
+}
+.h-board {
+  width: 196px;
+  height: 100px;
+  flex-direction: row;
+  justify-content: center;
+}
+.h-col {
+  width: 58px;
+  height: 100px;
+  border-radius: 18px;
+  background-color: #1c1c1e;
+  flex-direction: column;
+}
+.h-cur {
+  background-color: #2e2e2e;
+}
+.h-num {
+  height: 50px;
+  line-height: 50px;
+}
+.h-empty {
+  height: 24px;
+  line-height: 24px;
+  margin-top: 40px;
+  font-size: 20px;
+  color: #c7c7cc;
+  text-align: center;
+}
+
+/* --- new match: Wear alert dialog --- */
+/* Title (titleMedium) over the one button, confirm: filled 63x54dp
+   (95x81px), round, its icon 28dp (42px). Cancel is a bare cross under it,
+   onSurfaceVariant, 20dp (30px) in a 48dp (72px) touch target. */
+.dialog {
+  position: absolute;
+  left: 0px;
+  top: 0px;
   width: 212px;
   height: 520px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
 }
-.close {
-  width: 36px;
-  height: 36px;
+.d-title {
+  height: 27px;
+  line-height: 27px;
   margin-bottom: 18px;
-  border-radius: 18px;
-  justify-content: center;
-  align-items: center;
-  background-color: #1c1c1e;
-}
-.close-label {
   font-size: 24px;
+  font-weight: bold;
   color: #ffffff;
   text-align: center;
 }
-.row {
-  width: 184px;
-  height: 48px;
+.d-no {
+  width: 72px;
+  height: 72px;
   margin-top: 6px;
-  padding-left: 16px;
-  padding-right: 10px;
-  border-radius: 16px;
-  flex-direction: row;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  background-color: #1c1c1e;
 }
-.row-label {
-  font-size: 15px;
-  color: #ffffff;
+.d-yes {
+  width: 95px;
+  height: 81px;
+  border-radius: 41px;
+  justify-content: center;
+  align-items: center;
+  background-color: #30d158;
 }
-.row-label-us {
-  color: #64d2ff;
-}
-.row-label-them {
-  color: #ff9f0a;
-}
-.tg {
+.d-ic {
   width: 42px;
-  height: 26px;
-  padding-left: 3px;
-  padding-right: 3px;
-  border-radius: 13px;
-  flex-direction: row;
-  justify-content: flex-start;
+  height: 42px;
+}
+.d-x {
+  width: 30px;
+  height: 30px;
+}
+
+/* --- handle --- */
+/* A 36px strip at the bottom edge with a short bar, like the band's
+   notification shade (Wear has none: round screens close by swiping
+   right). Transparent: the list keeps peeking behind it. */
+.grab {
+  position: absolute;
+  left: 0px;
+  top: 480px;
+  width: 212px;
+  height: 40px;
+  justify-content: center;
   align-items: center;
-  background-color: #3a3a3c;
 }
-.tg-on {
-  justify-content: flex-end;
-  background-color: #c7c7cc;
-}
-.tg-us {
-  justify-content: flex-end;
-  background-color: #64d2ff;
-}
-.tg-them {
-  background-color: #ff9f0a;
-}
-.knob {
-  width: 20px;
-  height: 20px;
-  border-radius: 10px;
+.grab-bar {
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
   background-color: #8e8e93;
 }
-.knob-on {
-  background-color: #000000;
+
+/* --- scroll indicator --- */
+/* Wear's: 50x5dp track (75x6px here), onBackground at 20% luminance, 2dp
+   from the edge (inside the capsule's 8px side margin); thumb at 80%
+   luminance, half the track. */
+.sbar {
+  position: absolute;
+  left: 196px;
+  top: 222px;
+  width: 6px;
+  height: 75px;
+  border-radius: 3px;
+  flex-direction: column;
+  background-color: #333333;
 }
-.btn {
-  width: 184px;
-  height: 48px;
-  margin-top: 6px;
-  border-radius: 24px;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  background-color: #2c2c2e;
+.sthumb {
+  width: 6px;
+  height: 37px;
+  border-radius: 3px;
+  background-color: #cccccc;
 }
-.btn-first {
-  margin-top: 14px;
+.sp0 {
+  margin-top: 0px;
 }
-.btn-new {
-  background-color: #3a2a00;
-}
-.btn-danger {
-  background-color: #ff453a;
-}
-.btn-label {
-  font-size: 16px;
-  font-weight: bold;
-  color: #ffffff;
-  text-align: center;
-}
-.btn-label-new {
-  color: #ffd60a;
-}
-.confirm-title {
-  font-size: 17px;
-  font-weight: bold;
-  color: #ffffff;
-}
-.confirm-hint {
+.sp1 {
   margin-top: 4px;
-  font-size: 13px;
-  color: #8e8e93;
+}
+.sp2 {
+  margin-top: 8px;
+}
+.sp3 {
+  margin-top: 11px;
+}
+.sp4 {
+  margin-top: 15px;
+}
+.sp5 {
+  margin-top: 19px;
+}
+.sp6 {
+  margin-top: 23px;
+}
+.sp7 {
+  margin-top: 27px;
+}
+.sp8 {
+  margin-top: 30px;
+}
+.sp9 {
+  margin-top: 34px;
+}
+.sp10 {
+  margin-top: 38px;
 }
 </style>

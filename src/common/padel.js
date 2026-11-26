@@ -5,8 +5,10 @@
 // the score is always derived by replaying it. That makes "subtract" an edit
 // of the history instead of hand-written reverse rules.
 //
-// Rules: points 0/15/30/40, deuce and advantage (or golden point at 40-40 if
-// enabled), sets to 6 games won by 2, tiebreak to 7 won by 2 at 6-6, best of 3.
+// Rules: points 0/15/30/40; at 40-40 (deuce) one of three modes: advantage,
+// golden point (the next point wins) or Star Point (FIP, 2026: advantage at
+// the first two deuces, the third is decided by one point); sets to 6 games
+// won by 2, tiebreak to 7 won by 2 at 6-6, best of 3.
 //
 // Serve: `first` is the team that served the first game (null until chosen).
 // Teams alternate games, also across sets; each game starts from the
@@ -15,18 +17,43 @@
 
 export var US = 'u'
 export var THEM = 't'
+// Deuce modes.
+export var ADV = 'adv'
+export var GOLD = 'gold'
+export var STAR = 'star'
+export var DEUCE_MODES = [ADV, GOLD, STAR]
 var SETS_TO_WIN = 2
 
 function other(side) {
   return side === US ? THEM : US
 }
 
-export function newMatch(golden) {
-  return { history: '', golden: !!golden, first: null }
+// `id` identifies the match in the log (the page sets it to the time of the
+// first point); null until then.
+export function newMatch(deuce) {
+  return { history: '', deuce: deuceMode(deuce), first: null, id: null }
+}
+
+// A valid deuce mode; `true` (the old golden-point flag) means golden point.
+function deuceMode(d) {
+  if (d === true) return GOLD
+  return d === GOLD || d === STAR ? d : ADV
+}
+
+function copy(m, history, deuce, first) {
+  return { history: history, deuce: deuceMode(deuce), first: first || null, id: m.id || null }
 }
 
 function withHistory(m, history) {
-  return { history: history, golden: m.golden, first: m.first || null }
+  return copy(m, history, m.deuce, m.first)
+}
+
+// Whether the next point at this score decides the game outright (a game
+// point at 40-40 in golden point, or the Star Point: the third deuce,
+// 5-5 in points).
+function decider(deuce, pu, pt) {
+  if (pu !== pt || pu < 3) return false
+  return deuce === GOLD || (deuce === STAR && pu >= 5)
 }
 
 // Replays the history. Returns the full derived score.
@@ -47,8 +74,7 @@ export function score(m) {
 
     var gameWon
     if (tiebreak) gameWon = pts[w] >= 7 && pts[w] - pts[l] >= 2
-    else if (m.golden) gameWon = pts[w] >= 4
-    else gameWon = pts[w] >= 4 && pts[w] - pts[l] >= 2
+    else gameWon = pts[w] >= 4 && (pts[w] - pts[l] >= 2 || decider(m.deuce, pts[w] - 1, pts[l]))
     if (!gameWon) continue
 
     pts = { u: 0, t: 0 }
@@ -85,30 +111,44 @@ export function addPoint(m, side) {
   return withHistory(m, m.history + side)
 }
 
-// Takes a point away from `side`:
+// Takes a point away, swiping on `side`'s half:
 // - if `side` won the last point, that point is undone (this can reopen a
 //   game or set that point closed);
 // - otherwise, the most recent point `side` won in the current game is
-//   removed;
-// - if `side` has no points in the current game, nothing happens.
+//   removed (a point given to the wrong side a few points back);
+// - if `side` has nothing to remove in the current game, the last point
+//   played is undone, whoever won it. So swiping on either half always
+//   rewinds, across games, sets and a finished match, back to 0-0.
 export function removePoint(m, side) {
   var h = m.history
   if (!h.length) return m
   if (h[h.length - 1] === side) return withHistory(m, h.slice(0, -1))
   var start = score(m).gameStart
   var i = h.lastIndexOf(side)
-  if (i < start) return m
+  if (i < start) return withHistory(m, h.slice(0, -1))
   return withHistory(m, h.slice(0, i) + h.slice(i + 1))
 }
 
-export function setGolden(m, golden) {
-  return { history: m.history, golden: !!golden, first: m.first || null }
+export function setDeuce(m, deuce) {
+  return copy(m, m.history, deuce, m.first)
+}
+
+// True when the next point decides the game at deuce (golden or Star Point).
+export function decidingPoint(m, s) {
+  if (!s) s = score(m)
+  return !s.winner && !s.tiebreak && decider(m.deuce, s.points.u, s.points.t)
 }
 
 // Sets which team served the first game. The whole serve sequence is
 // derived from it, so changing it mid-match re-labels every game.
 export function setFirst(m, side) {
-  return { history: m.history, golden: m.golden, first: side === US || side === THEM ? side : null }
+  return copy(m, m.history, m.deuce, side === US || side === THEM ? side : null)
+}
+
+export function setId(m, id) {
+  var n = copy(m, m.history, m.deuce, m.first)
+  n.id = typeof id === 'number' ? id : null
+  return n
 }
 
 // Who serves the next point and from where. Returns null before the first
@@ -116,29 +156,40 @@ export function setFirst(m, side) {
 // 'R' / 'L'. `corner` is the server's quadrant on screen, which shows the
 // court from our side: them on top, us below; our right is the screen's
 // right, their right (they face us) is the screen's left.
+//
+// `players` says which player of each team serves that team's current or
+// next service turn: 0 for the one who served the team's first turn, 1 for
+// the partner. Service turns run in one sequence (a game is a turn; in a
+// tiebreak each one- or two-point stretch is a turn), teams alternate turns
+// and each team's players alternate theirs. It assumes the order never
+// changes, also across sets.
 export function serve(m, s) {
   if (!s) s = score(m)
   if (s.winner || !m.first) return null
   var n = s.games.u + s.games.t // games played so far
   for (var i = 0; i < s.setScores.length; i++) n += s.setScores[i][0] + s.setScores[i][1]
-  var gameServer = n % 2 === 0 ? m.first : other(m.first)
   var k = s.points.u + s.points.t // points played in this game
-  var server = gameServer
-  if (s.tiebreak && Math.floor((k + 1) / 2) % 2 === 1) server = other(gameServer)
+  var turn = n
+  if (s.tiebreak) turn += Math.floor((k + 1) / 2)
+  var server = turn % 2 === 0 ? m.first : other(m.first)
   var side = k % 2 === 0 ? 'R' : 'L'
   var corner
   if (server === US) corner = side === 'R' ? 'BR' : 'BL'
   else corner = side === 'R' ? 'TL' : 'TR'
-  return { server: server, side: side, corner: corner }
+  var players = {}
+  players[server] = Math.floor(turn / 2) % 2
+  players[other(server)] = Math.floor((turn + 1) / 2) % 2
+  return { server: server, side: side, corner: corner, players: players }
 }
 
 var LABELS = ['0', '15', '30', '40']
 
-// Text for each side's points: { u: '30', t: '40' }, 'AD', or tiebreak numbers.
-export function pointLabels(s, golden) {
+// Text for each side's points: { u: '30', t: '40' }, 'AD', or tiebreak
+// numbers. Past 40-40 (advantage or Star Point) it's 40-40 or AD.
+export function pointLabels(s) {
   var p = s.points
   if (s.tiebreak) return { u: String(p.u), t: String(p.t) }
-  if (!golden && p.u >= 3 && p.t >= 3) {
+  if (p.u >= 3 && p.t >= 3) {
     if (p.u === p.t) return { u: '40', t: '40' }
     return p.u > p.t ? { u: 'AD', t: '40' } : { u: '40', t: 'AD' }
   }
@@ -146,15 +197,21 @@ export function pointLabels(s, golden) {
 }
 
 export function serialize(m) {
-  return JSON.stringify({ v: 1, h: m.history, g: m.golden, f: m.first || null })
+  return JSON.stringify({ v: 1, h: m.history, d: m.deuce, f: m.first || null, i: m.id || null })
 }
 
 export function deserialize(str) {
   try {
     var o = JSON.parse(str)
     if (o && o.v === 1 && typeof o.h === 'string' && /^[ut]*$/.test(o.h)) {
-      // `f` was added in 0.4.0; older saves have no first server yet.
-      return { history: o.h, golden: !!o.g, first: o.f === US || o.f === THEM ? o.f : null }
+      // `f` was added in 0.4.0, `i` in 0.6.0, and `d` (deuce mode) in 0.7.0,
+      // replacing the golden-point flag `g`.
+      return {
+        history: o.h,
+        deuce: deuceMode(o.d !== undefined ? o.d : !!o.g),
+        first: o.f === US || o.f === THEM ? o.f : null,
+        id: typeof o.i === 'number' ? o.i : null
+      }
     }
   } catch (e) {}
   return newMatch(false)
